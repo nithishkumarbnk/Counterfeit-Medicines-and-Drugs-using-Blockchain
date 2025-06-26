@@ -1,0 +1,36 @@
+// .devcontainer/devcontainer.json
+{
+  "name": "Blockchain Medicine Tracker",
+  "image": "mcr.microsoft.com/devcontainers/universal:latest",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20" // Or your preferred Node.js version
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.vscode-typescript-next",
+        "esbenp.prettier-vscode",
+        "solidity.solidity" // For Solidity syntax highlighting
+      ]
+    }
+  },
+  "postCreateCommand": "npm install -g truffle ganache && npm install --prefix backend && npm install --prefix frontend",
+  "portsAttributes": {
+    "3000": {
+      "label": "Frontend",
+      "onAutoForward": "notify"
+    },
+    "5000": {
+      "label": "Backend API",
+      "onAutoForward": "notify"
+    },
+    "8545": {
+      "label": "Ganache Blockchain",
+      "onAutoForward": "notify"
+    }
+  },
+  "forwardPorts": [3000, 5000, 8545]
+}
+
