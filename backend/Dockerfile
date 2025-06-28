@@ -1,21 +1,26 @@
 # backend/Dockerfile
-# Use a Node.js base image
-FROM node:20-alpine
 
-# Set the working directory inside the container
+# Stage 1: Build the Node.js application
+FROM node:20-alpine AS build
+
 WORKDIR /app
 
-# Copy package.json and package-lock.json first to leverage Docker cache
 COPY package*.json ./
 
-# Install dependencies
 RUN npm install
 
-# Copy the rest of the application code
 COPY . .
 
-# Expose the port your Express app runs on
-EXPOSE 5000
+# Add ARG and ENV for the Firebase Service Account Key
+ARG FIREBASE_SERVICE_ACCOUNT_KEY_BASE64
+ENV FIREBASE_SERVICE_ACCOUNT_KEY_BASE64=$FIREBASE_SERVICE_ACCOUNT_KEY_BASE64
 
-# Command to run the backend server
+# Stage 2: Create a smaller production image (optional, but good practice)
+# FROM node:20-alpine
+# WORKDIR /app
+# COPY --from=build /app .
+# CMD ["node", "server.js"]
+# If you use a multi-stage build, ensure the ENV is passed to the final stage.
+# For simplicity, we'll stick to a single stage for now, as it's common in dev.
+
 CMD ["node", "server.js"]

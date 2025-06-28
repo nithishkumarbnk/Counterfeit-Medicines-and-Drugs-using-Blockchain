@@ -33,17 +33,20 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      # --- ADD THIS SECTION ---
+      args:
+        FIREBASE_SERVICE_ACCOUNT_KEY_BASE64: ${FIREBASE_SERVICE_ACCOUNT_KEY_BASE64}
+      # --- END ADD ---
     ports:
       - "5000:5000"
     environment:
       GANACHE_URL: http://blockchain:8545
       PORT: 5000
-      FIREBASE_SERVICE_ACCOUNT_KEY_BASE64: ${FIREBASE_SERVICE_ACCOUNT_KEY_BASE64}
-    # --- ADD THIS DEPENDS_ON SECTION BACK ---
+      # The ENV is now set in the Dockerfile, so you don't need it here unless you want to override it at runtime
+      # FIREBASE_SERVICE_ACCOUNT_KEY_BASE64: ${FIREBASE_SERVICE_ACCOUNT_KEY_BASE64} # Can remove this line
     depends_on:
       migrator:
         condition: service_completed_successfully
-    # --- END ADD ---
     networks:
       - app-network
     volumes:
