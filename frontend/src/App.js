@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import Auth from "./components/Auth";
 import MedicineList from "./components/MedicineList";
 import AddMedicine from "./components/AddMedicine";
+import AdminPanel from "./components/AdminPanel";
+
 import "./App.css";
 
 import { auth, db } from "./firebase"; // Import auth and db from your firebase.js
@@ -46,14 +48,10 @@ function App() {
 
   return (
     <div className="App">
-      <header className="App-header">
-        <h1>Counterfeit Medicine Tracker</h1>
-      </header>
+      {/* ... (header and main sections) */}
       <main>
-        {/* Auth component now receives user and userRole as props for display */}
         <Auth currentUser={user} userRole={userRole} />
 
-        {/* Conditional rendering: Only show sections if user is logged in AND role is determined */}
         {user && userRole && (
           <>
             {/* Conditional rendering for Add Medicine based on role */}
@@ -72,13 +70,14 @@ function App() {
               {/* Pass role to MedicineList */}
             </section>
 
-            {/* Optional: Admin Panel */}
-            {/* {userRole === 'admin' && (
+            {/* Optional: Admin Panel - UNCOMMENT THIS SECTION */}
+            {userRole === "admin" && ( // Only render if userRole is 'admin'
               <section className="admin-panel-section">
                 <h2>Admin Panel</h2>
-                <AdminPanel userRole={userRole} />
+                <AdminPanel userRole={userRole} />{" "}
+                {/* Pass userRole to AdminPanel */}
               </section>
-            )} */}
+            )}
           </>
         )}
       </main>
