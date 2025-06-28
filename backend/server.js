@@ -1,63 +1,86 @@
 // backend/server.js
 
-require("dotenv").config(); // Load environment variables from .env file
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const Web3 = require("web3").default;
+const Web3 = require("web3").default; // Corrected from previous steps
 const path = require("path");
 
 const app = express();
-const PORT = process.env.PORT || 5000; // Use port from .env or default to 5000
+const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors()); // Enable CORS for all routes
-app.use(express.json()); // Enable JSON body parsing
+app.use(cors());
+app.use(express.json());
 
 let web3;
-let medicineTracker; // Variable to hold our smart contract instance
+let medicineTracker;
+let contractAddress; // To store the deployed contract address
+let contractABI; // To store the contract ABI
 
-// Function to initialize Web3 and load the contract
-const init = async () => {
+// Helper to load contract artifact
+const loadContractArtifact = () => {
   try {
-    // 1. Connect to Ganache (local blockchain)
-    web3 = new Web3(process.env.GANACHE_URL || "http://127.0.0.1:7545");
-    console.log(
-      `Connected to Ganache at ${
-        process.env.GANACHE_URL || "http://127.0.0.1:7545"
-      }`
-    );
-
-    // 2. Load the compiled contract artifact
-    // Adjust the path to point to your build/contracts directory at the project root
-    const MedicineTrackerArtifact = require(path.join(
-      __dirname,
-      "../build/contracts/MedicineTracker.json"
-    ));
-
-    // 3. Get the network ID
-    const networkId = await web3.eth.net.getId();
-    const deployedNetwork = MedicineTrackerArtifact.networks[networkId];
-
-    if (!deployedNetwork) {
-      throw new Error(
-        `Contract not deployed on network ID ${networkId}. Please ensure Ganache is running and contract is migrated.`
-      );
-    }
-
-    // 4. Create a contract instance
-    medicineTracker = new web3.eth.Contract(
-      MedicineTrackerArtifact.abi,
-      deployedNetwork.address
-    );
-    console.log("MedicineTracker contract loaded successfully.");
-    console.log("Contract Address:", deployedNetwork.address);
+    // Adjust this path based on where your build/contracts directory is mounted in Docker
+    // In Docker, the volume mount makes /build/contracts available at the root of the container
+    return require("/build/contracts/MedicineTracker.json");
   } catch (error) {
-    console.error("Failed to initialize Web3 or load contract:", error);
-    process.exit(1); // Exit the process if initialization fails
+    console.error("Failed to load contract artifact:", error);
+    throw new Error(
+      "Contract artifact not found. Ensure it's compiled and path is correct."
+    );
   }
 };
 
-// API Endpoints
+// Function to initialize Web3 and load the contract with retries
+const init = async () => {
+  const MAX_RETRIES = 10; // Maximum number of retries
+  const RETRY_DELAY = 5000; // Delay between retries in milliseconds (5 seconds)
+
+  for (let i = 0; i < MAX_RETRIES; i++) {
+    try {
+      console.log(
+        `Attempting to connect to Ganache and load contract (Attempt ${
+          i + 1
+        }/${MAX_RETRIES})...`
+      );
+      web3 = new Web3(process.env.GANACHE_URL || "http://127.0.0.1:7545"); // Use env var from Docker Compose
+
+      // Check if Ganache is actually connected
+      await web3.eth.net.getId(); // This will throw if not connected
+
+      const MedicineTrackerArtifact = loadContractArtifact();
+
+      const networkId = await web3.eth.net.getId();
+      const deployedNetwork = MedicineTrackerArtifact.networks[networkId];
+
+      if (!deployedNetwork) {
+        throw new Error(
+          `Contract not deployed on network ID ${networkId}. Please ensure Ganache is running and contract is migrated.`
+        );
+      }
+
+      contractAddress = deployedNetwork.address;
+      contractABI = MedicineTrackerArtifact.abi;
+      medicineTracker = new web3.eth.Contract(contractABI, contractAddress);
+
+      console.log("MedicineTracker contract loaded successfully.");
+      console.log("Contract Address:", contractAddress);
+      return; // Success, exit the retry loop
+    } catch (error) {
+      console.error(
+        `Failed to initialize Web3 or load contract: ${error.message}`
+      );
+      if (i < MAX_RETRIES - 1) {
+        console.log(`Retrying in ${RETRY_DELAY / 1000} seconds...`);
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+      } else {
+        throw error; // Re-throw error if max retries reached
+      }
+    }
+  }
+};
+
+// API Endpoints (These remain the same as before)
 
 // Get all medicine IDs
 app.get("/api/medicines", async (req, res) => {
@@ -75,16 +98,15 @@ app.get("/api/medicines/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const medicine = await medicineTracker.methods.getMedicine(id).call();
-    // Convert BigInt values to string for JSON serialization if necessary
     const formattedMedicine = {
       id: medicine.id,
       name: medicine.name,
       manufacturer: medicine.manufacturer,
-      manufactureDate: Number(medicine.manufactureDate), // Convert BigInt to Number
+      manufactureDate: Number(medicine.manufactureDate),
       currentLocation: medicine.currentLocation,
       status: medicine.status,
       owner: medicine.owner,
-      timestamp: Number(medicine.timestamp), // Convert BigInt to Number
+      timestamp: Number(medicine.timestamp),
     };
     res.json(formattedMedicine);
   } catch (error) {
@@ -97,23 +119,27 @@ app.get("/api/medicines/:id", async (req, res) => {
 app.post("/api/medicines", async (req, res) => {
   try {
     const { id, name, manufacturer, currentLocation } = req.body;
-    const accounts = await web3.eth.getAccounts(); // Get accounts from Ganache
-    const sender = accounts[0]; // Use the first account as the sender
+    const accounts = await web3.eth.getAccounts();
+    const sender = accounts[0];
 
     const receipt = await medicineTracker.methods
       .addMedicine(id, name, manufacturer, currentLocation)
-      .send({ from: sender, gas: 3000000 }); // Specify gas limit
+      .send({ from: sender, gas: 3000000 });
 
-    res.status(201).json({
-      message: "Medicine added successfully",
-      transactionHash: receipt.transactionHash,
-    });
+    res
+      .status(201)
+      .json({
+        message: "Medicine added successfully",
+        transactionHash: receipt.transactionHash,
+      });
   } catch (error) {
     console.error("Error adding medicine:", error);
-    res.status(500).json({
-      error:
-        "Failed to add medicine. Check if ID already exists or Ganache is running.",
-    });
+    res
+      .status(500)
+      .json({
+        error:
+          "Failed to add medicine. Check if ID already exists or Ganache is running.",
+      });
   }
 });
 
@@ -123,7 +149,7 @@ app.put("/api/medicines/:id/status", async (req, res) => {
     const { id } = req.params;
     const { newStatus, newLocation } = req.body;
     const accounts = await web3.eth.getAccounts();
-    const sender = accounts[0]; // Use the first account as the sender
+    const sender = accounts[0];
 
     const receipt = await medicineTracker.methods
       .updateMedicineStatus(id, newStatus, newLocation)
@@ -140,8 +166,13 @@ app.put("/api/medicines/:id/status", async (req, res) => {
 });
 
 // Start the server after initializing Web3 and contract
-init().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Backend server running on port ${PORT}`);
+init()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Backend server running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Fatal error during backend initialization:", err);
+    process.exit(1); // Exit if initialization fails after retries
   });
-});

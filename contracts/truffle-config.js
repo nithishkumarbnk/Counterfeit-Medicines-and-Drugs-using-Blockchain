@@ -19,16 +19,15 @@ module.exports = {
   },
 
   // Output compiled contracts to a shared build folder at the project root
-  contracts_build_directory: path.resolve(__dirname, "./build/contracts"),
+  contracts_build_directory: path.join(__dirname, "../build/contracts"),
 
   // Networks configuration
   networks: {
     development: {
-      host: "127.0.0.1", // Localhost (default: none)
-      port: 8545, // Ganache default port
+      host: process.env.GANACHE_HOST || "127.0.0.1", // Use env var for host, fallback to localhost
+      port: process.env.GANACHE_PORT || 8545, // Use env var for port, fallback to 8545
       network_id: "*", // Any network (default: none)
     },
-    // You can add other networks here (e.g., testnets, mainnet)
   },
 
   // Set default mocha options here, use special reporters etc.

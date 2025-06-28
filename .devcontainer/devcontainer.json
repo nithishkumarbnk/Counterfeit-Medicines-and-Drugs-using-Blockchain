@@ -1,26 +1,30 @@
 // .devcontainer/devcontainer.json
 {
   "name": "Blockchain Medicine Tracker",
-  "image": "mcr.microsoft.com/devcontainers/universal:latest",
-  "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "20" // Or your preferred Node.js version
-    }
-  },
+  "dockerComposeFile": "../docker-compose.yml", // Path to your docker-compose.yml from .devcontainer folder
+  "service": "backend", // Which service in docker-compose.yml to use as the primary development container
+  "workspaceFolder": "/app", // The workspace folder *within* the primary service container
+  "remoteUser": "node", // The user to run as inside the container (e.g., 'node' for node:alpine images)
+
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-vscode.vscode-typescript-next",
         "esbenp.prettier-vscode",
-        "solidity.solidity" // For Solidity syntax highlighting
+        "solidity.solidity" // Essential for Solidity development
       ]
     }
   },
-  "postCreateCommand": "npm install -g truffle ganache && npm install --prefix backend && npm install --prefix frontend",
+
+  // This command runs *after* the Codespace is created and the services are built.
+  // It starts all your Docker Compose services in detached mode.
+  "postCreateCommand": "docker-compose up -d",
+
+  // Configure how ports are forwarded and displayed in Codespaces
   "portsAttributes": {
     "3000": {
-      "label": "Frontend",
-      "onAutoForward": "notify"
+      "label": "Frontend (React App)",
+      "onAutoForward": "notify" // Automatically notify user and open in browser
     },
     "5000": {
       "label": "Backend API",
@@ -31,6 +35,5 @@
       "onAutoForward": "notify"
     }
   },
-  "forwardPorts": [3000, 5000, 8545]
+  "forwardPorts": [3000, 5000, 8545] // Explicitly forward these ports
 }
-
