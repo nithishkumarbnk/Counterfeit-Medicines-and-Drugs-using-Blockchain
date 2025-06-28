@@ -1,51 +1,64 @@
 // frontend/src/components/MedicineList.js
 
 import React, { useState, useEffect } from "react";
-import { getFunctions, httpsCallable } from "firebase/functions"; // Import Firebase Functions SDK
 
-function MedicineList({ userRole }) {
-  // userRole is passed as a prop from App.js
+// firebaseIdToken and userRole are passed as props from App.js
+function MedicineList({ firebaseIdToken, userRole }) {
   const [medicineIds, setMedicineIds] = useState([]);
   const [selectedMedicine, setSelectedMedicine] = useState(null);
   const [message, setMessage] = useState("");
   const [newStatus, setNewStatus] = useState("");
   const [newLocation, setNewLocation] = useState("");
 
-  // Get the Firebase Functions instance
-  const functions = getFunctions();
+  // Your backend API base URL, which will be http://localhost:5000 when running in Codespaces
+  const API_BASE_URL = "http://localhost:5000";
 
-  // Function to fetch all medicine IDs from the blockchain via Cloud Function
+  // Function to fetch all medicine IDs from the blockchain via backend API
   const fetchMedicineIds = async () => {
     try {
-      const getAllMedicineIdsCallable = httpsCallable(
-        functions,
-        "getAllMedicineIds"
-      );
-      const result = await getAllMedicineIdsCallable();
-      setMedicineIds(result.data); // result.data contains the array of IDs
+      const response = await fetch(`${API_BASE_URL}/api/medicines`, {
+        headers: { Authorization: `Bearer ${firebaseIdToken}` }, // Include Firebase ID Token
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMedicineIds(data); // data contains the array of IDs
+      } else {
+        setMessage(
+          `Error fetching medicine IDs: ${data.error || data.message}`
+        );
+      }
     } catch (error) {
       console.error("Error fetching medicine IDs:", error);
       setMessage("Error fetching medicine IDs.");
     }
   };
 
-  // Function to fetch details of a specific medicine via Cloud Function
+  // Function to fetch details of a specific medicine via backend API
   const fetchMedicineDetails = async (id) => {
     setMessage(""); // Clear previous messages
     try {
-      const getMedicineCallable = httpsCallable(functions, "getMedicine");
-      const result = await getMedicineCallable({ id });
-      setSelectedMedicine(result.data); // result.data contains the medicine object
-      setNewStatus(result.data.status); // Pre-fill update form with current status
-      setNewLocation(result.data.currentLocation); // Pre-fill update form with current location
+      const response = await fetch(`${API_BASE_URL}/api/medicines/${id}`, {
+        headers: { Authorization: `Bearer ${firebaseIdToken}` }, // Include Firebase ID Token
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setSelectedMedicine(data); // data contains the medicine object
+        setNewStatus(data.status); // Pre-fill update form with current status
+        setNewLocation(data.currentLocation); // Pre-fill update form with current location
+      } else {
+        setMessage(
+          `Error fetching medicine details: ${data.error || data.message}`
+        );
+        setSelectedMedicine(null); // Clear selected medicine on error
+      }
     } catch (error) {
       console.error("Error fetching medicine details:", error);
       setMessage("Error fetching medicine details.");
-      setSelectedMedicine(null); // Clear selected medicine on error
+      setSelectedMedicine(null);
     }
   };
 
-  // Function to handle updating medicine status via Cloud Function
+  // Function to handle updating medicine status via backend API
   const handleUpdateStatus = async (e) => {
     e.preventDefault();
     if (!selectedMedicine) return; // Ensure a medicine is selected
@@ -61,21 +74,30 @@ function MedicineList({ userRole }) {
     }
 
     try {
-      const updateMedicineStatusCallable = httpsCallable(
-        functions,
-        "updateMedicineStatus"
+      const response = await fetch(
+        `${API_BASE_URL}/api/medicines/${selectedMedicine.id}/status`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${firebaseIdToken}`, // Include Firebase ID Token
+          },
+          body: JSON.stringify({ newStatus, newLocation }),
+        }
       );
-      const result = await updateMedicineStatusCallable({
-        id: selectedMedicine.id,
-        newStatus,
-        newLocation,
-      });
 
-      setMessage(
-        `Success: ${result.data.message} Transaction: ${result.data.transactionHash}`
-      );
-      fetchMedicineDetails(selectedMedicine.id); // Refresh details of the selected medicine
-      fetchMedicineIds(); // Refresh the list of IDs (in case owner changed or new ones added)
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(
+          `Success: ${data.message} Transaction: ${data.transactionHash}`
+        );
+        fetchMedicineDetails(selectedMedicine.id); // Refresh details of the selected medicine
+        fetchMedicineIds(); // Refresh the list of IDs
+      } else {
+        setMessage(
+          `Error: ${data.error || data.message || "Failed to update status"}`
+        );
+      }
     } catch (error) {
       console.error("Error updating status:", error);
       setMessage(`Error: ${error.message}`);
@@ -84,10 +106,13 @@ function MedicineList({ userRole }) {
 
   // Fetch medicine IDs on component mount and set up a refresh interval
   useEffect(() => {
-    fetchMedicineIds();
-    const interval = setInterval(fetchMedicineIds, 5000); // Refresh IDs every 5 seconds
-    return () => clearInterval(interval); // Cleanup interval on unmount
-  }, []); // Empty dependency array means this runs once on mount
+    // Only fetch if authenticated (firebaseIdToken is available)
+    if (firebaseIdToken) {
+      fetchMedicineIds();
+      const interval = setInterval(fetchMedicineIds, 5000); // Refresh IDs every 5 seconds
+      return () => clearInterval(interval); // Cleanup interval on unmount
+    }
+  }, [firebaseIdToken]); // Re-run effect if firebaseIdToken changes
 
   return (
     <div>

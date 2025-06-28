@@ -1,18 +1,17 @@
 // frontend/src/components/AddMedicine.js
 
 import React, { useState } from "react";
-import { getFunctions, httpsCallable } from "firebase/functions"; // Import Firebase Functions SDK
 
-function AddMedicine({ userRole }) {
-  // userRole is passed as a prop from App.js
+// firebaseIdToken and userRole are passed as props from App.js
+function AddMedicine({ firebaseIdToken, userRole }) {
   const [id, setId] = useState("");
   const [name, setName] = useState("");
   const [manufacturer, setManufacturer] = useState("");
   const [location, setLocation] = useState("");
   const [message, setMessage] = useState("");
 
-  // Get the Firebase Functions instance
-  const functions = getFunctions();
+  // Your backend API base URL, which will be http://localhost:5000 when running in Codespaces
+  const API_BASE_URL = "http://localhost:5000";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,29 +24,38 @@ function AddMedicine({ userRole }) {
     }
 
     try {
-      // Get a reference to your 'addMedicine' Cloud Function
-      const addMedicineCallable = httpsCallable(functions, "addMedicine");
-
-      // Call the Cloud Function with the form data
-      const result = await addMedicineCallable({
-        id,
-        name,
-        manufacturer,
-        currentLocation: location,
+      const response = await fetch(`${API_BASE_URL}/api/medicines`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${firebaseIdToken}`, // Include Firebase ID Token in Authorization header
+        },
+        body: JSON.stringify({
+          id,
+          name,
+          manufacturer,
+          currentLocation: location,
+        }),
       });
 
-      // Handle the response from the Cloud Function
-      setMessage(
-        `Success: ${result.data.message} Transaction: ${result.data.transactionHash}`
-      );
-      // Clear form fields on success
-      setId("");
-      setName("");
-      setManufacturer("");
-      setLocation("");
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(
+          `Success: ${data.message} Transaction: ${data.transactionHash}`
+        );
+        // Clear form fields on success
+        setId("");
+        setName("");
+        setManufacturer("");
+        setLocation("");
+      } else {
+        // Display error message from the backend
+        setMessage(
+          `Error: ${data.error || data.message || "Failed to add medicine"}`
+        );
+      }
     } catch (error) {
-      console.error("Error calling addMedicine Cloud Function:", error);
-      // Display error message from the Cloud Function (error.message)
+      console.error("Error adding medicine:", error);
       setMessage(`Error: ${error.message}`);
     }
   };
