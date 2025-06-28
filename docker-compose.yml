@@ -12,24 +12,22 @@ services:
     networks:
       - app-network
 
-  migrator: # NEW SERVICE: For compiling and deploying smart contracts
+  migrator:
     build:
-      context: ./contracts # Use the same image as blockchain (has truffle)
+      context: ./contracts
       dockerfile: Dockerfile
     environment:
-      GANACHE_HOST: blockchain # Point to the blockchain service name
+      GANACHE_HOST: blockchain
       GANACHE_PORT: 8545
     depends_on:
       blockchain:
-        condition: service_started # Wait for blockchain container to start
+        condition: service_started
     networks:
       - app-network
     volumes:
       - ./build/contracts:/build/contracts
-    entrypoint: ["bash"] # Keep this to ensure bash is used
-    # --- CHANGE THIS COMMAND SECTION ---
-    command: ["./deploy-contracts.sh"] # Execute the script
-    # --- END CHANGE ---
+    entrypoint: ["bash"]
+    command: ["./deploy-contracts.sh"]
 
   backend:
     build:
@@ -40,7 +38,7 @@ services:
     environment:
       GANACHE_URL: http://blockchain:8545
       PORT: 5000
-    depends_on:
+      FIREBASE_SERVICE_ACCOUNT_KEY_BASE64: ${FIREBASE_SERVICE_ACCOUNT_KEY_BASE64}
       migrator:
         condition: service_completed_successfully
     networks:

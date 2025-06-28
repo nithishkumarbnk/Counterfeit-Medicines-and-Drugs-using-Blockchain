@@ -23,6 +23,26 @@ let web3;
 let medicineTracker;
 let contractAddress;
 let contractABI;
+const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64;
+
+if (!serviceAccountBase64) {
+  console.error(
+    "FATAL ERROR: FIREBASE_SERVICE_ACCOUNT_KEY_BASE64 environment variable is not set."
+  );
+  console.error(
+    "Please set this environment variable with the Base64 encoded content of your Firebase serviceAccountKey.json."
+  );
+  process.exit(1); // Exit if the key is missing
+}
+
+// Decode the Base64 string back to JSON
+const serviceAccount = JSON.parse(
+  Buffer.from(serviceAccountBase64, "base64").toString("utf8")
+);
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 // --- Middleware for Firebase ID Token Authentication ---
 const authenticateFirebaseToken = async (req, res, next) => {
@@ -175,20 +195,16 @@ app.post(
         .addMedicine(id, name, manufacturer, currentLocation)
         .send({ from: sender, gas: 3000000 });
 
-      res
-        .status(201)
-        .json({
-          message: "Medicine added successfully",
-          transactionHash: receipt.transactionHash,
-        });
+      res.status(201).json({
+        message: "Medicine added successfully",
+        transactionHash: receipt.transactionHash,
+      });
     } catch (error) {
       console.error("Error adding medicine:", error);
-      res
-        .status(500)
-        .json({
-          error:
-            "Failed to add medicine. Check if ID already exists or Ganache is running.",
-        });
+      res.status(500).json({
+        error:
+          "Failed to add medicine. Check if ID already exists or Ganache is running.",
+      });
     }
   }
 );

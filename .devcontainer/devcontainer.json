@@ -1,7 +1,7 @@
 // .devcontainer/devcontainer.json
 {
   "name": "Blockchain Medicine Tracker",
-  "dockerComposeFile": "../docker-compose.yml", // Path to your docker-compose.yml from .devcontainer folder
+  "dockerComposeFile": "../docker-compose.yml",
   "service": "backend", // Which service in docker-compose.yml to use as the primary development container
   "workspaceFolder": "/app", // The workspace folder *within* the primary service container
   "remoteUser": "node", // The user to run as inside the container (e.g., 'node' for node:alpine images)
@@ -16,9 +16,7 @@
     }
   },
 
-  // This command runs *after* the Codespace is created and the services are built.
-  // It starts all your Docker Compose services in detached mode.
-  "postCreateCommand": "docker-compose up -d",
+  // REMOVE THIS LINE: "postCreateCommand": "docker-compose up -d",
 
   // Configure how ports are forwarded and displayed in Codespaces
   "portsAttributes": {
@@ -35,5 +33,12 @@
       "onAutoForward": "notify"
     }
   },
-  "forwardPorts": [3000, 5000, 8545] // Explicitly forward these ports
+  "forwardPorts": [3000, 5000, 8545], // Explicitly forward these ports
+
+  // --- ADD THIS SECTION ---
+  // Environment variables to be set in the remote environment where VS Code runs commands (including docker-compose)
+  "remoteEnv": {
+    "FIREBASE_SERVICE_ACCOUNT_KEY_BASE64": "ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAiY291bnRlcmZpZXQtMTMwZjciLAogICJwcml2YXRlX2tleV9pZCI6ICJlMWEzODYwMzU3ZDVjMzEwNjhhMmFiZTExMGNkYTE1NjY3Y2E4MDY1IiwKICAicHJpdmF0ZV9rZXkiOiAiLS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tXG5NSUlFdmdJQkFEQU5CZ2txaGtpRzl3MEJBUUVGQUFTQ0JLZ3dnZ1NrQWdFQUFvSUJBUUN3ajJyTWxrOGlCV1hKXG4rb3lIV1B1UnhJMUR2cWprdHJ4NDhUaWswQ0N2cGhydWw3aVpTdGJ0YkNHZWkycWhVelBYeHZ3cE5RTEFrcmYyXG5sdVAveDJlQ3htN1pnME9Zam9kaGJaQ1B1eThwN2NxZlUzNlpiMWZtTEtQNXZEZS8xN2tUOStpMlk2dVZDNzdZXG5LV2ZKamhuZkNqaHVua0JybWp0SWdCRlNjVEhrT0MwNU5WbG05eHNyWGptUXppUW80Kzc2cWRtMW1PZVRpZE8zXG5EZGZ6Vko0bCsvOWJIRGlERFlhWENOYmovN1Z1dndwNlF4U2p2VUd5aExjbW0wTVRzZDc5bVExZk9ZRXhTWCt6XG5SNC9BeFRxQ2hZY2VQem41RVpNNGVTTUh0Q3lDcGRSMmsyVzNQNTg0Ukg1RXBBVlpBdnFXM3dYS2w5MzQ4Q2hVXG45cG1YUml0WEFnTUJBQUVDZ2dFQUVEbGEzaW94RGF2QytEczZpWlM1ZlRkbC9HUFFpaisrZER0RThnN0w5TWdGXG4yOXg3a29rb0tkQ21DdUc5dzgyWG9IYldUMXBoMTl5WTVLTVFtQkxmTzByM3FhdDFzb0dQc0NTM2Jzc0x0a1hMXG5EamFkRmdWVXV1cHBpNkVVMndubTBHUEI4Y0h1ajR6R1FIL0JocFJmdCtQdENVRW56ZkRIWWlOSk5ETUJtM3BrXG44eXlhZm51TllHajJERU1KOGtzQ3hYS21ZbVJMNUJVdTZQazJ1OUVTalF5cFFPRFdjcGNhQnlnaXVzMWVyckZmXG53dGJNM0NzUUVPbjV0ODVXN3dicjBCKzQvZHJnTmdTejgxTmxHditGeDhoaTVJcUw3VzhmNWt6QkFiOTJFQWdGXG5RTjJEQndCbnpNbHEzelFNQXFDN0JSZjRNVzdNaTJtcFc3VlBRV1JsUFFLQmdRRFh3NkhUa0tIZzJtWkdmR1l4XG5INHdLcTdYemVDem1BL0JtS3hTbmRaZTNaU2dDZ3ZuZGE0SG5lQ3BYeTZHU3JSb1hyb3puRXNYYkM5Tklrb2VtXG5HaU8wdk4zU1QzWWs1YU4wUjlGQmNlRWxPNlF2OThpTnNyMHlJZ1g0TWRDczVvdGl5RFNzbE1zeS94MEwrMk1LXG5KemVwZFMyUGtzb1pxVEFyU3hKNWFPK0lXd0tCZ1FEUmZEb01EUFN2OXBmSm1GTHBsQUx5b3NySkdRcEhWTmtPXG4yMlc0eWpUdTB5dEdmMkpwT3IrVDFKT2REMTJaRkV0M3R0blphYW1YWWVBV2RVd1ZoOXI0K2FkZDRYZjgrT0VEXG5qQlNtYWZVQkY5UkVzbk5IMVJpUHBXSEdZcHhzWWE4NUEzb25UZ1hkR1hDVDFkUmFYYm1JMTBKaTJoZDNIb1dxXG4rcmNTK3ZPNXRRS0JnUUNZRC94QkNySExzcUJhRk5wQXpLYjU3a0p4c01TVDV6cktCcHFyMnFodVRCQ0NsS1JjXG5kS1E4NmVlTnNLblNvY1M5NC9yUjc5MFpuNS9zaWJpb1M4dldXVFZNUDB4WWZLOVNDRHRtRUVoSTRWdTVvcnZwXG5nWXJ0aGlVRzRyVGE1akJlRWhOdGZnQW5sTHgzOFZlL2xCd2FoY2J5Wk5XaWVDYkduRVlNNHZQTitRS0JnUURCXG44T0xFdVZIbmZzTDBEcVBrUC9XaXNQaFF5Vy9zcmk3dVJFeWVrZ1lEZlZrNVFVSFk3bHppL2hGVGZTQklVck96XG50NE5rZHlCZFdHM2dIT1E5b3JNbGdleGpUQlNNRGRZME5JSUJ0Mkx1aWlNcEhwVC8wZGVWVmFWNXgxM09NWG5KXG5yT0J3ZHhtU29yVEpDVlE1L1QrQjR0aEJNR3c5Q2ZMeVluOFBnV29YYVFLQmdBUzVnUGhYY242M2FnNkowdFJmXG52emk4K1B0N2tuU2ppTm13VzlTNlFxT2tRZko2Y3dtVElveUQ5dkpMandKaUJkMENJb0NxZmh0SXJJd29aVlh5XG5rWmxTays0S0cvWFBqUTRXQkNJMDhWUWswWEx2dW9ROTBVT3FMK2hFQzIrSm5XUUpGMDgxaFU3OWs2dmhJdzdYXG5ScTlRNmpVTU02VzR4RzZQYXdDQ2dnbDhcbi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS1cbiIsCiAgImNsaWVudF9lbWFpbCI6ICJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0Bjb3VudGVyZmlldC0xMzBmNy5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsCiAgImNsaWVudF9pZCI6ICIxMDUxMzQxODU4Njc1OTcwMjEzOTEiLAogICJhdXRoX3VyaSI6ICJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20vby9vYXV0aDIvYXV0aCIsCiAgInRva2VuX3VyaSI6ICJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsCiAgImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9vYXV0aDIvdjEvY2VydHMiLAogICJjbGllbnRfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9yb2JvdC92MS9tZXRhZGF0YS94NTA5L2ZpcmViYXNlLWFkbWluc2RrLWZic3ZjJTQwY291bnRlcmZpZXQtMTMwZjcuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLAogICJ1bml2ZXJzZV9kb21haW4iOiAiZ29vZ2xlYXBpcy5jb20iCn0K"
+  }
+  // --- END ADD ---
 }
