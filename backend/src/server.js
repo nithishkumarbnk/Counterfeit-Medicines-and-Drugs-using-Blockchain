@@ -2,7 +2,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const Web3 = require("web3").default; // Add .default here
+const Web3 = require("web3").default;
 const path = require("path");
 const fs = require("fs");
 require("dotenv").config(); // Load environment variables from .env
@@ -15,10 +15,31 @@ app.use(cors()); // Enable CORS for all routes
 app.use(bodyParser.json()); // To parse JSON request bodies
 
 // --- Web3 and Smart Contract Setup ---
-const web3 = new Web3(process.env.WEB3_PROVIDER_URL || "http://127.0.0.1:8545"); // Connect to Ganache or other provider
+const web3 = new Web3(process.env.WEB3_PROVIDER_URL || "http://127.0.0.1:8545");
 
 let drugTrackingContract;
 let contractAddress;
+
+// --- IMPORTANT ADDITION: Add Private Key to Web3 Wallet for Signing ---
+const manufacturerPrivateKey = process.env.MANUFACTURER_PRIVATE_KEY;
+if (manufacturerPrivateKey) {
+  try {
+    // Add the private key to the web3 wallet. This allows the server to sign transactions.
+    web3.eth.accounts.wallet.add(manufacturerPrivateKey);
+    console.log("Manufacturer account added to web3 wallet for signing.");
+  } catch (e) {
+    console.error(
+      "Error adding manufacturer private key to web3 wallet:",
+      e.message
+    );
+    // In a production environment, you might want to exit or log this more severely
+  }
+} else {
+  console.warn(
+    "MANUFACTURER_PRIVATE_KEY environment variable not found. Transactions requiring signing may fail."
+  );
+}
+// --- END IMPORTANT ADDITION ---
 
 // Function to load contract ABI and address
 const loadContract = async () => {
@@ -27,15 +48,24 @@ const loadContract = async () => {
     const contractPath = path.resolve(
       __dirname,
       "../blockchain_artifacts/contracts/DrugTracking.json"
-    ); // <--- This line should be correct
+    );
     const contractArtifact = JSON.parse(fs.readFileSync(contractPath, "utf8"));
 
     const contractABI = contractArtifact.abi;
-    // In a real scenario, you'd get this from a config or a deployed address registry
-    // For local development, we'll use the address from the deployed artifact
-    const networkId = await web3.eth.net.getId(); // Get current network ID
-    contractAddress = contractArtifact.networks[networkId].address;
+    // --- IMPORTANT CHANGE: Use getChainId() for modern Web3.js ---
+    const networkId = await web3.eth.getChainId(); // Get current chain ID
+    const networkIdString = networkId.toString(); // Convert to string for object lookup
+    console.log(`Detected Network ID: ${networkIdString}`);
 
+    // Check if the contract is deployed on the detected network
+    if (!contractArtifact.networks[networkIdString]) {
+      throw new Error(
+        `Contract not deployed on network with ID ${networkIdString}. Check your truffle-config.js and ensure contract is migrated.`
+      );
+    }
+    // --- END IMPORTANT CHANGE ---
+
+    contractAddress = contractArtifact.networks[networkIdString].address; // Use networkIdString
     drugTrackingContract = new web3.eth.Contract(contractABI, contractAddress);
     console.log(`Connected to DrugTracking contract at: ${contractAddress}`);
   } catch (error) {
@@ -66,7 +96,25 @@ app.post("/api/drug/manufacture", async (req, res) => {
       return res.status(400).json({ error: "Invalid manufacturerAddress" });
     }
 
+    // --- IMPORTANT ADDITION: Verify manufacturerAddress is the one loaded ---
+    // The address provided by the frontend must match the private key loaded on the server
+    const loadedAccountAddress = web3.eth.accounts.wallet[0]
+      ? web3.eth.accounts.wallet[0].address
+      : null;
+
+    if (
+      !loadedAccountAddress ||
+      loadedAccountAddress.toLowerCase() !== manufacturerAddress.toLowerCase()
+    ) {
+      return res.status(400).json({
+        error:
+          "Manufacturer address provided does not match the configured signing account on the server.",
+      });
+    }
+    // --- END IMPORTANT ADDITION ---
+
     // Call the smart contract function
+    // The .send() method will now use the private key added to web3.eth.accounts.wallet
     const receipt = await drugTrackingContract.methods
       .manufactureDrug(id, productId, batchId)
       .send({ from: manufacturerAddress, gas: 3000000 }); // Specify gas limit
@@ -104,6 +152,22 @@ app.post("/api/drug/transfer", async (req, res) => {
         .status(400)
         .json({ error: "Invalid Ethereum address provided" });
     }
+
+    // --- IMPORTANT ADDITION: Verify currentOwnerAddress for transfer ---
+    const loadedAccountAddress = web3.eth.accounts.wallet[0]
+      ? web3.eth.accounts.wallet[0].address
+      : null;
+
+    if (
+      !loadedAccountAddress ||
+      loadedAccountAddress.toLowerCase() !== currentOwnerAddress.toLowerCase()
+    ) {
+      return res.status(400).json({
+        error:
+          "Current owner address provided does not match the configured signing account on the server.",
+      });
+    }
+    // --- END IMPORTANT ADDITION ---
 
     const receipt = await drugTrackingContract.methods
       .transferDrug(id, newOwnerAddress, newStatus)
@@ -162,15 +226,41 @@ app.post("/api/sensor-data", async (req, res) => {
     // Example threshold for cold chain
     const violationDetails = `Temperature out of range (${temperature}°C). Expected 2-8°C.`;
     try {
-      // This transaction needs to be sent from an account that has permission
-      // to call logColdChainViolation. For simplicity, using a default Ganache account.
-      // In a real system, this would be a dedicated IoT gateway account.
-      const accounts = await web3.eth.getAccounts();
-      const defaultSender = senderAddress || accounts[0]; // Use provided sender or first Ganache account
+      // --- IMPORTANT ADDITION: Use the loaded private key for senderAddress ---
+      const loadedAccountAddress = web3.eth.accounts.wallet[0]
+        ? web3.eth.accounts.wallet[0].address
+        : null;
+
+      // If senderAddress is provided, it must match the loaded account.
+      // If not provided, we assume the loaded account is the sender.
+      let actualSenderAddress;
+      if (senderAddress) {
+        if (
+          loadedAccountAddress &&
+          loadedAccountAddress.toLowerCase() === senderAddress.toLowerCase()
+        ) {
+          actualSenderAddress = senderAddress;
+        } else {
+          return res.status(400).json({
+            error:
+              "Sender address provided does not match the configured signing account on the server for sensor data.",
+          });
+        }
+      } else {
+        if (loadedAccountAddress) {
+          actualSenderAddress = loadedAccountAddress;
+        } else {
+          return res.status(500).json({
+            error:
+              "No sender address provided and no signing account configured on the server for sensor data.",
+          });
+        }
+      }
+      // --- END IMPORTANT ADDITION ---
 
       const receipt = await drugTrackingContract.methods
         .logColdChainViolation(drugId, violationDetails)
-        .send({ from: defaultSender, gas: 3000000 });
+        .send({ from: actualSenderAddress, gas: 3000000 });
       console.log(
         `Logged cold chain violation for ${drugId}. Tx: ${receipt.transactionHash}`
       );
@@ -192,6 +282,7 @@ app.post("/api/sensor-data", async (req, res) => {
 loadContract().then(() => {
   app.listen(PORT, () => {
     console.log(`Node.js Backend listening on port ${PORT}`);
-    console.log(`Connect to Ganache at ${web3.currentProvider.host}`);
+    // The web3.currentProvider.host might be undefined if using Infura/Alchemy
+    console.log(`Connected to Web3 Provider: ${process.env.WEB3_PROVIDER_URL}`);
   });
 });
