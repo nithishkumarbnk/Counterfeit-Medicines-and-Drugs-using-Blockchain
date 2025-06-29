@@ -12,8 +12,8 @@ services:
       - key: WEB3_PROVIDER_URL
         sync: false
     region: oregon
-    dockerContext: backend/ # This tells Docker to look inside 'backend/' for the build context
-    dockerfilePath: Dockerfile # This tells Docker to look for 'Dockerfile' within the 'dockerContext' (i.e., backend/Dockerfile )
+    dockerContext: . # <--- CHANGE THIS TO . (dot )
+    dockerfilePath: Dockerfile # <--- KEEP THIS AS Dockerfile
     autoDeployTrigger: commit
-    rootDir: backend/ # This tells Render to change its working directory to 'backend/' before running commands
+    rootDir: . # <--- CHANGE THIS TO . (dot)
 version: "1"
