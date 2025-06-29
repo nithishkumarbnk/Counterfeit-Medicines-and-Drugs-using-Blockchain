@@ -1,23 +1,37 @@
 # backend/Dockerfile
-FROM node:18-alpine
 
-# Set working directory
+# Stage 0: Copy entire repository to get access to blockchain artifacts
+# We use a simple alpine image with git, though Render's build environment often
+# has git pre-installed. This stage ensures we have a clean copy of the whole repo.
+FROM alpine/git as repo_cloner
+WORKDIR /repo
+
+# Render's "Root Directory" setting means the build context is 'backend/'.
+# To get the full repository content, we need to copy from the parent directory (../)
+# relative to the Dockerfile's location (which is in 'backend/').
+# So, '..' refers to the root of your Git repository.
+COPY .. /repo/ 
+
+# Stage 1: Build the Node.js backend
+FROM node:18-alpine as backend_builder
+
+# Set working directory for the backend application
 WORKDIR /app
 
-# Copy package.json and package-lock.json
-COPY package*.json ./
+# Copy package.json and package-lock.json from the backend directory
+# These are now relative to /repo/backend from the previous stage
+COPY --from=repo_cloner /repo/backend/package*.json ./
 
 # Install dependencies
 RUN npm install
 
 # Copy the compiled contract artifacts from the blockchain directory
-# The build context for this Dockerfile is 'backend/', so '../blockchain/build/contracts'
-# refers to the 'blockchain/build/contracts' directory relative to the root of your Git repo.
-# We copy it to '/app/blockchain_artifacts/contracts' inside the container.
-COPY ../blockchain/build/contracts /app/blockchain_artifacts/contracts
+# These are now relative to /repo/blockchain from the previous stage
+COPY --from=repo_cloner /repo/blockchain/build/contracts /app/blockchain_artifacts/contracts
 
-# Copy the rest of the application code
-COPY . .
+# Copy the rest of the backend application code
+# These are also relative to /repo/backend from the previous stage
+COPY --from=repo_cloner /repo/backend/. .
 
 # Expose the port the app runs on
 EXPOSE 5000

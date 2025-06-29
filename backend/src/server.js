@@ -27,8 +27,7 @@ const loadContract = async () => {
     const contractPath = path.resolve(
       __dirname,
       "../blockchain_artifacts/contracts/DrugTracking.json"
-    ); // <--- THIS LINE IS CHANGED
-
+    ); // <--- This line should be correct
     const contractArtifact = JSON.parse(fs.readFileSync(contractPath, "utf8"));
 
     const contractABI = contractArtifact.abi;
