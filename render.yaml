@@ -1,0 +1,19 @@
+# Exported from Render on 2025-06-29T03:54:00Z
+services:
+  - type: web
+    name: Counterfeit-Medicines-and-Drugs-using-Blockchain
+    runtime: docker
+    repo: https://github.com/nithishkumarbnk/Counterfeit-Medicines-and-Drugs-using-Blockchain
+    branch: main2
+    plan: free
+    envVars:
+      - key: PORT
+        sync: false
+      - key: WEB3_PROVIDER_URL
+        sync: false
+    region: oregon
+    dockerContext: backend/ # This tells Docker to look inside 'backend/' for the build context
+    dockerfilePath: Dockerfile # This tells Docker to look for 'Dockerfile' within the 'dockerContext' (i.e., backend/Dockerfile )
+    autoDeployTrigger: commit
+    rootDir: backend/ # This tells Render to change its working directory to 'backend/' before running commands
+version: "1"
