@@ -1,0 +1,140 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f0f2f5;
+}
+
+.App {
+  text-align: center;
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.App-header h1 {
+  margin-bottom: 15px;
+}
+
+.App-header nav ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.App-header nav li {
+  margin: 0 15px;
+}
+
+.App-header nav a {
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+  transition: color 0.3s ease;
+}
+
+.App-header nav a:hover {
+  color: #61dafb;
+}
+
+main {
+  background-color: #fff;
+  padding: 20px;
+  max-width: 800px;
+  margin: 20px auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* General form styling */
+form div {
+  margin-bottom: 15px;
+  text-align: left;
+}
+
+form label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+form input[type="text"],
+form input[type="email"],
+form input[type="password"],
+form textarea {
+  width: calc(100% - 16px); /* Account for padding */
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box; /* Include padding in width */
+}
+
+form button {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s ease;
+}
+
+form button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+form button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+p {
+  margin-top: 10px;
+}
+
+.error-message {
+  color: red;
+  margin-top: 10px;
+}
+
+.success-message {
+  color: green;
+  margin-top: 10px;
+}
+
+/* DrugVerifier specific styles */
+.verification-result {
+  border: 1px solid #eee;
+  padding: 15px;
+  margin-top: 20px;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+  text-align: left;
+}
+
+.verification-result h3,
+.verification-result h4 {
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.verification-result ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.verification-result li {
+  margin-bottom: 5px;
+  border-bottom: 1px dotted #ddd;
+  padding-bottom: 5px;
+}
