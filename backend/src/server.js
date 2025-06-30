@@ -32,6 +32,7 @@ if (
   process.env.WEB3_PROVIDER_URL &&
   process.env.WEB3_PROVIDER_URL.startsWith("wss://")
 ) {
+  // Access WebsocketProvider as a property of Web3.providers
   web3 = new Web3(
     new Web3.providers.WebsocketProvider(process.env.WEB3_PROVIDER_URL)
   );
@@ -39,6 +40,7 @@ if (
   process.env.WEB3_PROVIDER_URL &&
   process.env.WEB3_PROVIDER_URL.startsWith("http")
 ) {
+  // Access HttpProvider as a property of Web3.providers
   web3 = new Web3(
     new Web3.providers.HttpProvider(process.env.WEB3_PROVIDER_URL)
   );
@@ -107,7 +109,7 @@ const loadContract = async () => {
     const contractArtifact = JSON.parse(fs.readFileSync(contractPath, "utf8"));
 
     const contractABI = contractArtifact.abi;
-    const networkId = await web3.eth.getChainId();
+    const networkId = await web3.eth.getChainId(); // Returns string in v1.x
     const networkIdString = networkId.toString();
 
     console.log(`Detected Network ID: ${networkIdString}`);
