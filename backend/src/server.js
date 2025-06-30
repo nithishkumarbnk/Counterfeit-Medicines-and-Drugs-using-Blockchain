@@ -4,20 +4,22 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const Web3 = require("web3");
-const { HttpProvider, WebsocketProvider } = require("web3-providers");
+
 const path = require("path");
 const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const web3 = new Web3(
+  new Web3.providers.HttpProvider(process.env.WEB3_PROVIDER_URL)
+);
 
 // --- Global Variable Declarations ---
 const { MongoClient } = require("mongodb");
 const MONGODB_URI = process.env.MONGODB_URI;
 let mongoDb; // MongoDB client instance
 
-let web3; // Web3 instance
 let drugTrackingContract; // Smart contract instance
 let contractAddress; // Smart contract address
 
