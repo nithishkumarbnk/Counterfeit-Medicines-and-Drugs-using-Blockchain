@@ -1,11 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios"; // Add this import
 
-// Define your backend API base URL
-// If running locally: const API_BASE_URL = "http://localhost:5000/api";
-// If deployed on Render: const API_BASE_URL = "YOUR_RENDER_BACKEND_URL/api";
-const API_BASE_URL = "http://localhost:5000/api"; // CHANGE THIS TO YOUR ACTUAL BACKEND URL
-
 function DrugVerifier() {
   const [drugId, setDrugId] = useState("");
   const [allDrugsData, setAllDrugsData] = useState(null); // Renamed to avoid conflict with function
@@ -22,7 +17,9 @@ function DrugVerifier() {
     }
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/verifyDrug/${drugId}`); // Corrected API call
+      const response = await axios.get(
+        `${REACT_APP_BACKEND_URL}/verifyDrug/${drugId}`
+      ); // Corrected API call
       setVerificationResult(response.data);
     } catch (err) {
       console.error(
@@ -46,7 +43,7 @@ function DrugVerifier() {
     setError("");
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/getAllDrugs`); // Corrected API call
+      const response = await axios.get(`${REACT_APP_BACKEND_URL}/getAllDrugs`); // Corrected API call
       setAllDrugsData(response.data);
     } catch (err) {
       console.error(
