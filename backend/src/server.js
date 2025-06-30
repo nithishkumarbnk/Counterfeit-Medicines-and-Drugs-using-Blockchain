@@ -22,6 +22,13 @@ let contractAddress;
 
 app.use(cors());
 app.use(bodyParser.json());
+web3.eth
+  .getBlockNumber()
+  .then((block) => console.log("Connected to Web3, latest block:", block))
+  .catch((err) => {
+    console.error("Web3 connection failed:", err.message);
+    process.exit(1);
+  });
 
 // Setup Web3 instance
 if (
