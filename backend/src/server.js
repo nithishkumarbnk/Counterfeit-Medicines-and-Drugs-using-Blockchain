@@ -3,54 +3,56 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const Web3 = require("web3");
-const provider = new Web3.providers.HttpProvider(process.env.WEB3_PROVIDER_URL);
-const web3 = new Web3(provider);
-
-const path = require("path");
-const fs = require("fs");
 require("dotenv").config();
 
-const app = express();
-const PORT = process.env.PORT || 5000;
+const Web3 = require("web3");
 
-// --- Global Variable Declarations ---
-const { MongoClient } = require("mongodb");
-const MONGODB_URI = process.env.MONGODB_URI;
-let mongoDb; // MongoDB client instance
-
-let drugTrackingContract; // Smart contract instance
-let contractAddress; // Smart contract address
-
-// --- Middleware ---
-app.use(cors());
-app.use(bodyParser.json());
-
-// --- Web3 Setup (Initialized FIRST) ---
+// ✅ FIXED Web3 provider initialization
+let web3;
 if (
   process.env.WEB3_PROVIDER_URL &&
   process.env.WEB3_PROVIDER_URL.startsWith("wss://")
 ) {
+  const { WebsocketProvider } = require("web3");
   web3 = new Web3(new WebsocketProvider(process.env.WEB3_PROVIDER_URL));
 } else if (
   process.env.WEB3_PROVIDER_URL &&
   process.env.WEB3_PROVIDER_URL.startsWith("http")
 ) {
+  const { HttpProvider } = require("web3");
   web3 = new Web3(new HttpProvider(process.env.WEB3_PROVIDER_URL));
 } else {
-  web3 = new Web3("http://127.0.0.1:8545"); // Fallback for local Ganache
+  web3 = new Web3("http://127.0.0.1:8545"); // fallback for local Ganache
 }
 
-// --- Test Web3 Connection (NOW it's safe to call) ---
+const path = require("path");
+const fs = require("fs");
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// --- Global Variables ---
+const { MongoClient } = require("mongodb");
+const MONGODB_URI = process.env.MONGODB_URI;
+let mongoDb;
+
+let drugTrackingContract;
+let contractAddress;
+
+// --- Middleware ---
+app.use(cors());
+app.use(bodyParser.json());
+
+// --- Test Web3 connection ---
 web3.eth
   .getBlockNumber()
   .then((block) => console.log("Connected to Web3, latest block:", block))
   .catch((err) => {
     console.error("Web3 connection failed:", err.message);
-    process.exit(1); // Exit if Web3 connection fails
+    process.exit(1);
   });
 
-// --- Add Private Key to Web3 Wallet for Signing (NOW it's safe to call) ---
+// --- Add private key to wallet ---
 const manufacturerPrivateKey = process.env.MANUFACTURER_PRIVATE_KEY;
 if (manufacturerPrivateKey) {
   try {
@@ -60,34 +62,26 @@ if (manufacturerPrivateKey) {
       web3.eth.accounts.wallet[0].address
     );
   } catch (e) {
-    console.error(
-      "Error adding manufacturer private key to web3 wallet:",
-      e.message
-    );
-    // In a production environment, you might want to exit or log this more severely
+    console.error("Error adding manufacturer private key:", e.message);
   }
 } else {
-  console.warn(
-    "MANUFACTURER_PRIVATE_KEY environment variable not found. Transactions requiring signing may fail."
-  );
+  console.warn("MANUFACTURER_PRIVATE_KEY not set. Transactions may fail.");
 }
-// --- END IMPORTANT ADDITION ---
 
-// --- MongoDB Connection Function ---
+// --- Connect to MongoDB ---
 async function connectToMongoDb() {
   try {
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
     mongoDb = client.db("drug_tracking_db");
-    console.log("Backend successfully connected to MongoDB Atlas.");
+    console.log("Connected to MongoDB Atlas.");
   } catch (error) {
-    console.error("Backend failed to connect to MongoDB:", error);
-    process.exit(1); // Exit if DB connection fails
+    console.error("MongoDB connection failed:", error);
+    process.exit(1);
   }
 }
-// --- END MongoDB Connection Function ---
 
-// Function to load contract ABI and address
+// --- Load contract ---
 const loadContract = async () => {
   try {
     const contractPath = path.resolve(
@@ -99,7 +93,6 @@ const loadContract = async () => {
     const contractABI = contractArtifact.abi;
     const networkId = await web3.eth.getChainId();
     const networkIdString = networkId.toString();
-    console.log(`Detected Network ID: ${networkIdString}`);
 
     if (!contractArtifact.networks[networkIdString]) {
       throw new Error(`Contract not deployed on network ${networkIdString}`);
@@ -107,17 +100,16 @@ const loadContract = async () => {
 
     contractAddress = contractArtifact.networks[networkIdString].address;
     drugTrackingContract = new web3.eth.Contract(contractABI, contractAddress);
-    console.log(`Connected to DrugTracking contract at: ${contractAddress}`);
 
-    // The manufacturerPrivateKey logic was moved outside loadContract
-    // as it depends on web3 being initialized.
+    console.log(`Connected to contract at: ${contractAddress}`);
   } catch (error) {
-    console.error("Failed to load contract or wallet:", error.message);
+    console.error("Contract load failed:", error.message);
     process.exit(1);
   }
 };
 
-// --- API endpoints ---
+// --- API Routes ---
+
 app.get("/api/hasRole/:roleName/:address", async (req, res) => {
   const { roleName, address } = req.params;
 
@@ -128,19 +120,11 @@ app.get("/api/hasRole/:roleName/:address", async (req, res) => {
   let roleHash;
   switch (roleName.toUpperCase()) {
     case "DEFAULT_ADMIN_ROLE":
-      roleHash = web3.utils.keccak256("DEFAULT_ADMIN_ROLE");
-      break;
     case "MANUFACTURER_ROLE":
-      roleHash = web3.utils.keccak256("MANUFACTURER_ROLE");
-      break;
     case "DISTRIBUTOR_ROLE":
-      roleHash = web3.utils.keccak256("DISTRIBUTOR_ROLE");
-      break;
     case "PHARMACY_ROLE":
-      roleHash = web3.utils.keccak256("PHARMACY_ROLE");
-      break;
     case "REGULATOR_ROLE":
-      roleHash = web3.utils.keccak256("REGULATOR_ROLE");
+      roleHash = web3.utils.keccak256(roleName.toUpperCase());
       break;
     default:
       return res.status(400).json({ error: "Invalid role name." });
@@ -261,7 +245,7 @@ app.post("/api/sensor-data", async (req, res) => {
   );
 
   if (temperature < 2 || temperature > 8) {
-    const violation = `Temperature out of range (${temperature}°C). Expected 2-8°C.`;
+    const violation = `Temperature out of range (${temperature}°C). Expected 2–8°C.`;
     try {
       const loadedAddress = web3.eth.accounts.wallet[0]?.address;
       const actualSender = senderAddress || loadedAddress;
@@ -286,7 +270,7 @@ app.post("/api/sensor-data", async (req, res) => {
   res.json({ message: "Sensor data received." });
 });
 
-// Start
+// --- Start Server ---
 loadContract()
   .then(() => {
     app.listen(PORT, async () => {
