@@ -5,25 +5,7 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 require("dotenv").config();
 
-const Web3 = require("web3");
-
-// ✅ FIXED Web3 provider initialization
-let web3;
-if (
-  process.env.WEB3_PROVIDER_URL &&
-  process.env.WEB3_PROVIDER_URL.startsWith("wss://")
-) {
-  const { WebsocketProvider } = require("web3");
-  web3 = new Web3(new WebsocketProvider(process.env.WEB3_PROVIDER_URL));
-} else if (
-  process.env.WEB3_PROVIDER_URL &&
-  process.env.WEB3_PROVIDER_URL.startsWith("http")
-) {
-  const { HttpProvider } = require("web3");
-  web3 = new Web3(new HttpProvider(process.env.WEB3_PROVIDER_URL));
-} else {
-  web3 = new Web3("http://127.0.0.1:8545"); // fallback for local Ganache
-}
+const Web3 = require("web3"); // Import Web3 directly for v1.x
 
 const path = require("path");
 const fs = require("fs");
@@ -36,12 +18,33 @@ const { MongoClient } = require("mongodb");
 const MONGODB_URI = process.env.MONGODB_URI;
 let mongoDb;
 
+let web3;
 let drugTrackingContract;
 let contractAddress;
 
 // --- Middleware ---
 app.use(cors());
 app.use(bodyParser.json());
+
+// --- Web3 Setup ---
+// Correctly initialize Web3 with its providers for v1.x
+if (
+  process.env.WEB3_PROVIDER_URL &&
+  process.env.WEB3_PROVIDER_URL.startsWith("wss://")
+) {
+  web3 = new Web3(
+    new Web3.providers.WebsocketProvider(process.env.WEB3_PROVIDER_URL)
+  );
+} else if (
+  process.env.WEB3_PROVIDER_URL &&
+  process.env.WEB3_PROVIDER_URL.startsWith("http")
+) {
+  web3 = new Web3(
+    new Web3.providers.HttpProvider(process.env.WEB3_PROVIDER_URL)
+  );
+} else {
+  web3 = new Web3("http://127.0.0.1:8545"); // fallback for local Ganache
+}
 
 // --- Test Web3 connection ---
 web3.eth
@@ -56,7 +59,11 @@ web3.eth
 const manufacturerPrivateKey = process.env.MANUFACTURER_PRIVATE_KEY;
 if (manufacturerPrivateKey) {
   try {
-    web3.eth.accounts.wallet.add(manufacturerPrivateKey);
+    // Standardize to adding account object
+    const account = web3.eth.accounts.privateKeyToAccount(
+      manufacturerPrivateKey
+    );
+    web3.eth.accounts.wallet.add(account);
     console.log(
       "Manufacturer account added:",
       web3.eth.accounts.wallet[0].address
@@ -94,6 +101,8 @@ const loadContract = async () => {
     const networkId = await web3.eth.getChainId();
     const networkIdString = networkId.toString();
 
+    console.log(`Detected Network ID: ${networkIdString}`);
+
     if (!contractArtifact.networks[networkIdString]) {
       throw new Error(`Contract not deployed on network ${networkIdString}`);
     }
@@ -118,13 +127,22 @@ app.get("/api/hasRole/:roleName/:address", async (req, res) => {
   }
 
   let roleHash;
+  // Correctly hash the role names for AccessControl
   switch (roleName.toUpperCase()) {
     case "DEFAULT_ADMIN_ROLE":
+      roleHash = web3.utils.keccak256("DEFAULT_ADMIN_ROLE");
+      break;
     case "MANUFACTURER_ROLE":
+      roleHash = web3.utils.keccak256("MANUFACTURER_ROLE");
+      break;
     case "DISTRIBUTOR_ROLE":
+      roleHash = web3.utils.keccak256("DISTRIBUTOR_ROLE");
+      break;
     case "PHARMACY_ROLE":
+      roleHash = web3.utils.keccak256("PHARMACY_ROLE");
+      break;
     case "REGULATOR_ROLE":
-      roleHash = web3.utils.keccak256(roleName.toUpperCase());
+      roleHash = web3.utils.keccak256("REGULATOR_ROLE");
       break;
     default:
       return res.status(400).json({ error: "Invalid role name." });
