@@ -2,19 +2,23 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const Web3 = require("web3"); // No .default needed with require
+// --- CHANGE START ---
+// Import Web3 and its providers explicitly
+const { Web3 } = require("web3");
+const { HttpProvider, WebsocketProvider } = require("web3-providers"); // Import providers
+// --- CHANGE END ---
 const path = require("path");
 const { MongoClient } = require("mongodb");
 const fs = require("fs");
-require("dotenv").config();
+require("dotenv").config(); // Load environment variables from .env
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 // Middleware
-app.use(cors());
-app.use(bodyParser.json());
+app.use(cors()); // Enable CORS for all routes
+app.use(bodyParser.json()); // To parse JSON request bodies
 
 // --- Web3 and Smart Contract Setup ---
 let web3; // Declare web3 here, initialize based on protocol
@@ -22,16 +26,20 @@ if (
   process.env.WEB3_PROVIDER_URL &&
   process.env.WEB3_PROVIDER_URL.startsWith("wss://")
 ) {
+  // --- CHANGE START ---
   web3 = new Web3(
-    new Web3.providers.WebsocketProvider(process.env.WEB3_PROVIDER_URL)
+    new WebsocketProvider(process.env.WEB3_PROVIDER_URL) // Use imported WebsocketProvider
   );
+  // --- CHANGE END ---
 } else if (
   process.env.WEB3_PROVIDER_URL &&
   process.env.WEB3_PROVIDER_URL.startsWith("http")
 ) {
+  // --- CHANGE START ---
   web3 = new Web3(
-    new Web3.providers.HttpProvider(process.env.WEB3_PROVIDER_URL)
+    new HttpProvider(process.env.WEB3_PROVIDER_URL) // Use imported HttpProvider
   );
+  // --- CHANGE END ---
 } else {
   web3 = new Web3("http://127.0.0.1:8545"); // Fallback for local Ganache
 }
@@ -45,6 +53,7 @@ const manufacturerPrivateKey = process.env.MANUFACTURER_PRIVATE_KEY;
 let loadedAccountAddress = null; // Declare here to be accessible globally
 if (manufacturerPrivateKey) {
   try {
+    // Add the private key to the web3 wallet. This allows the server to sign transactions.
     web3.eth.accounts.wallet.add(manufacturerPrivateKey);
     loadedAccountAddress = web3.eth.accounts.wallet[0].address;
     console.log(
@@ -55,6 +64,7 @@ if (manufacturerPrivateKey) {
       "Error adding manufacturer private key to web3 wallet:",
       e.message
     );
+    // In a production environment, you might want to exit or log this more severely
   }
 } else {
   console.warn(
@@ -78,6 +88,7 @@ async function connectToMongoDb() {
 // Function to load contract ABI and address
 const loadContract = async () => {
   try {
+    // Path to the compiled contract artifact
     const contractPath = path.resolve(
       __dirname,
       "../blockchain/build/contracts/DrugTracking.json" // Corrected path assuming 'blockchain' is sibling to 'backend'
@@ -85,10 +96,12 @@ const loadContract = async () => {
     const contractArtifact = JSON.parse(fs.readFileSync(contractPath, "utf8"));
 
     const contractABI = contractArtifact.abi;
-    const networkId = await web3.eth.getChainId();
-    const networkIdString = networkId.toString();
+    // --- IMPORTANT CHANGE: Use getChainId() for modern Web3.js ---
+    const networkId = await web3.eth.getChainId(); // Get current chain ID
+    const networkIdString = networkId.toString(); // Convert to string for object lookup
     console.log(`Detected Network ID: ${networkIdString}`);
 
+    // Check if the contract is deployed on the detected network
     if (
       !contractArtifact.networks ||
       !contractArtifact.networks[networkIdString]
@@ -97,7 +110,9 @@ const loadContract = async () => {
         `Contract not deployed on network with ID ${networkIdString}. Check your truffle-config.js and ensure contract is migrated.`
       );
     }
-    contractAddress = contractArtifact.networks[networkIdString].address;
+    // --- END IMPORTANT CHANGE ---
+
+    contractAddress = contractArtifact.networks[networkIdString].address; // Use networkIdString
     drugTrackingContract = new web3.eth.Contract(contractABI, contractAddress);
     console.log(`Connected to DrugTracking contract at: ${contractAddress}`);
   } catch (error) {
@@ -105,7 +120,7 @@ const loadContract = async () => {
     console.warn(
       "Ensure Ganache is running and contract is deployed (truffle migrate)."
     );
-    process.exit(1);
+    process.exit(1); // Exit if contract cannot be loaded
   }
 };
 
@@ -123,10 +138,14 @@ app.post("/api/drug/manufacture", async (req, res) => {
   }
 
   try {
+    // Ensure the manufacturerAddress is a valid Ethereum address
     if (!web3.utils.isAddress(manufacturerAddress)) {
       return res.status(400).json({ error: "Invalid manufacturerAddress" });
     }
 
+    // --- IMPORTANT ADDITION: Verify manufacturerAddress is the one loaded ---
+    // The address provided by the frontend must match the private key loaded on the server
+    // loadedAccountAddress is already set globally
     if (
       !loadedAccountAddress ||
       loadedAccountAddress.toLowerCase() !== manufacturerAddress.toLowerCase()
@@ -136,10 +155,13 @@ app.post("/api/drug/manufacture", async (req, res) => {
           "Manufacturer address provided does not match the configured signing account on the server.",
       });
     }
+    // --- END IMPORTANT ADDITION ---
 
+    // Call the smart contract function
+    // The .send() method will now use the private key added to web3.eth.accounts.wallet
     const receipt = await drugTrackingContract.methods
       .manufactureDrug(id, productId, batchId)
-      .send({ from: manufacturerAddress, gas: 3000000 });
+      .send({ from: manufacturerAddress, gas: 3000000 }); // Specify gas limit
 
     res.status(200).json({
       message: "Drug manufactured successfully",
@@ -175,6 +197,8 @@ app.post("/api/drug/transfer", async (req, res) => {
         .json({ error: "Invalid Ethereum address provided" });
     }
 
+    // --- IMPORTANT ADDITION: Verify currentOwnerAddress for transfer ---
+    // loadedAccountAddress is already set globally
     if (
       !loadedAccountAddress ||
       loadedAccountAddress.toLowerCase() !== currentOwnerAddress.toLowerCase()
@@ -184,6 +208,7 @@ app.post("/api/drug/transfer", async (req, res) => {
           "Current owner address provided does not match the configured signing account on the server.",
       });
     }
+    // --- END IMPORTANT ADDITION ---
 
     const receipt = await drugTrackingContract.methods
       .transferDrug(id, newOwnerAddress, newStatus)
