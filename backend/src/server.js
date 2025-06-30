@@ -78,7 +78,16 @@ if (manufacturerPrivateKey) {
 // --- Connect to MongoDB ---
 async function connectToMongoDb() {
   try {
-    const client = new MongoClient(MONGODB_URI);
+    const client = new MongoClient(MONGODB_URI, {
+      // Add this option to force a specific TLS version if needed,
+      // or to bypass strict SSL checks for testing.
+      // This is a common workaround for SSL_alert_number_80 errors.
+      // Note: tlsAllowInvalidCertificates should be used with caution in production.
+      // A better long-term solution is to ensure your Node.js environment's OpenSSL
+      // is fully compatible with MongoDB Atlas's preferred TLS settings.
+      tlsAllowInvalidCertificates: true, // Temporarily allow invalid certs to bypass handshake issue
+      tls: true, // Ensure TLS is explicitly enabled
+    });
     await client.connect();
     mongoDb = client.db("drug_tracking_db");
     console.log("Connected to MongoDB Atlas.");
