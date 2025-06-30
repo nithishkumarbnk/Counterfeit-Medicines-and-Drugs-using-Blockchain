@@ -78,7 +78,53 @@ const loadContract = async () => {
 };
 
 // --- API Endpoints ---
+app.get("/api/hasRole/:roleName/:address", async (req, res) => {
+  const { roleName, address } = req.params;
 
+  if (!web3.utils.isAddress(address)) {
+    return res
+      .status(400)
+      .json({ error: "Invalid Ethereum address provided." });
+  }
+
+  // Convert roleName string to bytes32
+  let roleBytes32;
+  switch (roleName.toUpperCase()) {
+    case "DEFAULT_ADMIN_ROLE":
+      roleBytes32 = web3.utils.keccak256("DEFAULT_ADMIN_ROLE");
+      break;
+    case "MANUFACTURER_ROLE":
+      roleBytes32 = web3.utils.keccak256("MANUFACTURER_ROLE");
+      break;
+    case "DISTRIBUTOR_ROLE":
+      roleBytes32 = web3.utils.keccak256("DISTRIBUTOR_ROLE");
+      break;
+    case "PHARMACY_ROLE":
+      roleBytes32 = web3.utils.keccak256("PHARMACY_ROLE");
+      break;
+    case "REGULATOR_ROLE":
+      roleBytes32 = web3.utils.keccak256("REGULATOR_ROLE");
+      break;
+    default:
+      return res.status(400).json({ error: "Invalid role name provided." });
+  }
+
+  try {
+    const hasRoleResult = await drugTrackingContract.methods
+      .hasRole(roleBytes32, address)
+      .call();
+    res.status(200).json({
+      address: address,
+      role: roleName,
+      hasRole: hasRoleResult,
+    });
+  } catch (error) {
+    console.error(`Error checking role ${roleName} for ${address}:`, error);
+    res
+      .status(500)
+      .json({ error: "Failed to check role.", details: error.message });
+  }
+});
 // POST /api/drug/manufacture
 app.post("/api/drug/manufacture", async (req, res) => {
   const { id, productId, batchId, manufacturerAddress } = req.body;
@@ -211,8 +257,16 @@ app.get("/api/drug/verify/:drugId", async (req, res) => {
       .json({ error: "Failed to verify drug", details: error.message });
   }
 });
-
-// POST /api/sensor-data (for IoT integration)
+app.get("/api/drugs/getAllDrugs", async (req, res) => {
+  try {
+    const drugs = await mongoDb.collection("drugs").find({}).toArray();
+    res.json(drugs);
+  } catch (error) {
+    console.error("Error fetching all drugs from MongoDB:", error);
+    res.status(500).json({ message: "Error fetching all drugs." });
+  }
+});
+// POST /api/sensor-data (for IoT inte    gration)
 app.post("/api/sensor-data", async (req, res) => {
   const { drugId, timestamp, temperature, humidity, senderAddress } = req.body;
   console.log(

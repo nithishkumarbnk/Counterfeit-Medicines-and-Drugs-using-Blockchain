@@ -9,7 +9,38 @@ function DrugVerifier() {
   const [verificationResult, setVerificationResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkAddress, setCheckAddress] = useState("");
+  const [checkRole, setCheckRole] = useState("MANUFACTURER_ROLE"); // Default role to check
+  const [roleCheckResult, setRoleCheckResult] = useState(null);
 
+  const handleCheckRole = async () => {
+    setError("");
+    setRoleCheckResult(null);
+    if (!checkAddress) {
+      setError("Please enter an address to check role.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/hasRole/${checkRole}/${checkAddress}`
+      );
+      setRoleCheckResult(response.data);
+    } catch (err) {
+      console.error(
+        "Role check error:",
+        err.response ? err.response.data : err.message
+      );
+      setError(
+        "Error checking role: " +
+          (err.response
+            ? err.response.message || err.response.data.error
+            : err.message)
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleVerify = async () => {
     setError("");
     setVerificationResult(null);
@@ -66,6 +97,31 @@ function DrugVerifier() {
   return (
     <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
       <h2>Verify Drug Authenticity</h2>
+      <h3>Check Role</h3>
+      <input
+        type="text"
+        placeholder="Address to check role"
+        value={checkAddress}
+        onChange={(e) => setCheckAddress(e.target.value)}
+      />
+      <select value={checkRole} onChange={(e) => setCheckRole(e.target.value)}>
+        <option value="MANUFACTURER_ROLE">Manufacturer</option>
+        <option value="DISTRIBUTOR_ROLE">Distributor</option>
+        <option value="PHARMACY_ROLE">Pharmacy</option>
+        <option value="REGULATOR_ROLE">Regulator</option>
+        <option value="DEFAULT_ADMIN_ROLE">Admin</option>
+      </select>
+      <button onClick={handleCheckRole} disabled={loading}>
+        Check Role
+      </button>
+
+      {roleCheckResult && (
+        <div>
+          <p>Address: {roleCheckResult.address}</p>
+          <p>Role: {roleCheckResult.role}</p>
+          <p>Has Role: {roleCheckResult.hasRole ? "Yes" : "No"}</p>
+        </div>
+      )}
       <input
         type="text"
         placeholder="Enter Drug ID (e.g., QR scan)"
