@@ -233,6 +233,154 @@ app.post("/api/drug/transfer", async (req, res) => {
 });
 
 // GET /api/drug/verify/:drugId
+// GET /api/hasRole/:roleName/:address (Reads from Blockchain)
+app.get("/api/hasRole/:roleName/:address", async (req, res) => {
+  const { roleName, address } = req.params;
+
+  if (!web3.utils.isAddress(address)) {
+    return res
+      .status(400)
+      .json({ error: "Invalid Ethereum address provided." });
+  }
+
+  let roleBytes32;
+  switch (roleName.toUpperCase()) {
+    case "DEFAULT_ADMIN_ROLE":
+      roleBytes32 = web3.utils.keccak256("DEFAULT_ADMIN_ROLE");
+      break;
+    case "MANUFACTURER_ROLE":
+      roleBytes32 = web3.utils.keccak256("MANUFACTURER_ROLE");
+      break;
+    case "DISTRIBUTOR_ROLE":
+      roleBytes32 = web3.utils.keccak256("DISTRIBUTOR_ROLE");
+      break;
+    case "PHARMACY_ROLE":
+      roleBytes32 = web3.utils.keccak256("PHARMACY_ROLE");
+      break;
+    case "REGULATOR_ROLE":
+      roleBytes32 = web3.utils.keccak256("REGULATOR_ROLE");
+      break;
+    default:
+      return res.status(400).json({ error: "Invalid role name provided." });
+  }
+
+  try {
+    const hasRoleResult = await drugTrackingContract.methods
+      .hasRole(roleBytes32, address)
+      .call();
+    res.status(200).json({
+      address: address,
+      role: roleName,
+      hasRole: hasRoleResult,
+    });
+  } catch (error) {
+    console.error(`Error checking role ${roleName} for ${address}:`, error);
+    res
+      .status(500)
+      .json({ error: "Failed to check role.", details: error.message });
+  }
+});
+
+// POST /api/drug/manufacture (Writes to Blockchain)
+app.post("/api/drug/manufacture", async (req, res) => {
+  const { id, productId, batchId, manufacturerAddress } = req.body;
+
+  if (!id || !productId || !batchId || !manufacturerAddress) {
+    return res.status(400).json({
+      error:
+        "Missing required fields: id, productId, batchId, manufacturerAddress",
+    });
+  }
+
+  try {
+    if (!web3.utils.isAddress(manufacturerAddress)) {
+      return res.status(400).json({ error: "Invalid manufacturerAddress" });
+    }
+
+    const loadedAccountAddress = web3.eth.accounts.wallet[0]
+      ? web3.eth.accounts.wallet[0].address
+      : null;
+
+    if (
+      !loadedAccountAddress ||
+      loadedAccountAddress.toLowerCase() !== manufacturerAddress.toLowerCase()
+    ) {
+      return res.status(400).json({
+        error:
+          "Manufacturer address provided does not match the configured signing account on the server.",
+      });
+    }
+
+    const receipt = await drugTrackingContract.methods
+      .manufactureDrug(id, productId, batchId)
+      .send({ from: manufacturerAddress, gas: 3000000 });
+
+    res.status(200).json({
+      message: "Drug manufactured successfully",
+      drugId: id,
+      transactionHash: receipt.transactionHash,
+    });
+  } catch (error) {
+    console.error("Error manufacturing drug:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to manufacture drug", details: error.message });
+  }
+});
+
+// POST /api/drug/transfer (Writes to Blockchain)
+app.post("/api/drug/transfer", async (req, res) => {
+  const { id, newOwnerAddress, newStatus, currentOwnerAddress } = req.body;
+
+  if (!id || !newOwnerAddress || !newStatus || !currentOwnerAddress) {
+    return res.status(400).json({
+      error:
+        "Missing required fields: id, newOwnerAddress, newStatus, currentOwnerAddress",
+    });
+  }
+
+  try {
+    if (
+      !web3.utils.isAddress(newOwnerAddress) ||
+      !web3.utils.isAddress(currentOwnerAddress)
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Invalid Ethereum address provided" });
+    }
+
+    const loadedAccountAddress = web3.eth.accounts.wallet[0]
+      ? web3.eth.accounts.wallet[0].address
+      : null;
+
+    if (
+      !loadedAccountAddress ||
+      loadedAccountAddress.toLowerCase() !== currentOwnerAddress.toLowerCase()
+    ) {
+      return res.status(400).json({
+        error:
+          "Current owner address provided does not match the configured signing account on the server.",
+      });
+    }
+
+    const receipt = await drugTrackingContract.methods
+      .transferDrug(id, newOwnerAddress, newStatus)
+      .send({ from: currentOwnerAddress, gas: 3000000 });
+
+    res.status(200).json({
+      message: "Drug transferred successfully",
+      drugId: id,
+      transactionHash: receipt.transactionHash,
+    });
+  } catch (error) {
+    console.error("Error transferring drug:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to transfer drug", details: error.message });
+  }
+});
+
+// GET /api/drug/verify/:drugId (Reads from Blockchain)
 app.get("/api/drug/verify/:drugId", async (req, res) => {
   const drugId = req.params.drugId;
 
@@ -257,16 +405,8 @@ app.get("/api/drug/verify/:drugId", async (req, res) => {
       .json({ error: "Failed to verify drug", details: error.message });
   }
 });
-app.get("/api/drugs/getAllDrugs", async (req, res) => {
-  try {
-    const drugs = await mongoDb.collection("drugs").find({}).toArray();
-    res.json(drugs);
-  } catch (error) {
-    console.error("Error fetching all drugs from MongoDB:", error);
-    res.status(500).json({ message: "Error fetching all drugs." });
-  }
-});
-// POST /api/sensor-data (for IoT inte    gration)
+
+// POST /api/sensor-data (Writes to Blockchain)
 app.post("/api/sensor-data", async (req, res) => {
   const { drugId, timestamp, temperature, humidity, senderAddress } = req.body;
   console.log(
@@ -275,18 +415,13 @@ app.post("/api/sensor-data", async (req, res) => {
     )}`
   );
 
-  // Example: Check for cold chain violation and log to blockchain
   if (temperature < 2 || temperature > 8) {
-    // Example threshold for cold chain
     const violationDetails = `Temperature out of range (${temperature}°C). Expected 2-8°C.`;
     try {
-      // --- IMPORTANT ADDITION: Use the loaded private key for senderAddress ---
       const loadedAccountAddress = web3.eth.accounts.wallet[0]
         ? web3.eth.accounts.wallet[0].address
         : null;
 
-      // If senderAddress is provided, it must match the loaded account.
-      // If not provided, we assume the loaded account is the sender.
       let actualSenderAddress;
       if (senderAddress) {
         if (
@@ -310,7 +445,6 @@ app.post("/api/sensor-data", async (req, res) => {
           });
         }
       }
-      // --- END IMPORTANT ADDITION ---
 
       const receipt = await drugTrackingContract.methods
         .logColdChainViolation(drugId, violationDetails)
@@ -325,9 +459,6 @@ app.post("/api/sensor-data", async (req, res) => {
       );
     }
   }
-
-  // In a real application, you would also store this data in an off-chain database
-  // for detailed analytics and historical records.
 
   res.status(200).json({ message: "Sensor data received successfully" });
 });

@@ -1,16 +1,19 @@
 import React, { useState } from "react";
-import axios from "axios"; // Add this import
+import axios from "axios";
 
-const REACT_APP_BACKEND_URL =
-  "https://counterfeit-medicines-and-drugs-using.onrender.com";
+// This variable will be injected by Vercel from your environment variables.
+// Make sure REACT_APP_BACKEND_URL is set in your Vercel project settings.
+// Example: https://counterfeit-medicines-and-drugs-using.onrender.com
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
+
 function DrugVerifier() {
   const [drugId, setDrugId] = useState("");
-  const [allDrugsData, setAllDrugsData] = useState(null); // Renamed to avoid conflict with function
+  const [allDrugsData, setAllDrugsData] = useState(null);
   const [verificationResult, setVerificationResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkAddress, setCheckAddress] = useState("");
-  const [checkRole, setCheckRole] = useState("MANUFACTURER_ROLE"); // Default role to check
+  const [checkRole, setCheckRole] = useState("MANUFACTURER_ROLE");
   const [roleCheckResult, setRoleCheckResult] = useState(null);
 
   const handleCheckRole = async () => {
@@ -23,7 +26,7 @@ function DrugVerifier() {
     setLoading(true);
     try {
       const response = await axios.get(
-        `${REACT_APP_BACKEND_URL}/hasRole/${checkRole}/${checkAddress}`
+        `${API_BASE_URL}/api/hasRole/${checkRole}/${checkAddress}`
       );
       setRoleCheckResult(response.data);
     } catch (err) {
@@ -33,14 +36,19 @@ function DrugVerifier() {
       );
       setError(
         "Error checking role: " +
-          (err.response
-            ? err.response.message || err.response.data.error
-            : err.message)
+          (err.response &&
+            err.response.data &&
+            (err.response.data.message || err.response.data.error)) ||
+          (err.response && err.response.status
+            ? `Status ${err.response.status}: ${err.response.statusText}`
+            : err.message) ||
+          "Unknown error occurred."
       );
     } finally {
       setLoading(false);
     }
   };
+
   const handleVerify = async () => {
     setError("");
     setVerificationResult(null);
@@ -50,9 +58,10 @@ function DrugVerifier() {
     }
     setLoading(true);
     try {
+      // Calling the backend endpoint that reads from blockchain
       const response = await axios.get(
-        `${REACT_APP_BACKEND_URL}/verifyDrug/${drugId}`
-      ); // Corrected API call
+        `${API_BASE_URL}/api/drug/verify/${drugId}`
+      );
       setVerificationResult(response.data);
     } catch (err) {
       console.error(
@@ -61,9 +70,13 @@ function DrugVerifier() {
       );
       setError(
         "Error verifying drug: " +
-          (err.response
-            ? err.response.message || err.response.data.error
-            : err.message) // Improved error message
+          (err.response &&
+            err.response.data &&
+            (err.response.data.message || err.response.data.error)) ||
+          (err.response && err.response.status
+            ? `Status ${err.response.status}: ${err.response.statusText}`
+            : err.message) ||
+          "Unknown error occurred."
       );
     } finally {
       setLoading(false);
@@ -71,12 +84,12 @@ function DrugVerifier() {
   };
 
   const handleGetAllDrugs = async () => {
-    // Renamed function for clarity
     setAllDrugsData(null);
     setError("");
     setLoading(true);
     try {
-      const response = await axios.get(`${REACT_APP_BACKEND_URL}/getAllDrugs`); // Corrected API call
+      // Calling the backend endpoint that reads from blockchain (will likely return 501)
+      const response = await axios.get(`${API_BASE_URL}/api/getAllDrugs`);
       setAllDrugsData(response.data);
     } catch (err) {
       console.error(
@@ -85,9 +98,13 @@ function DrugVerifier() {
       );
       setError(
         "Error fetching all drugs: " +
-          (err.response
-            ? err.response.message || err.response.data.error
-            : err.message)
+          (err.response &&
+            err.response.data &&
+            (err.response.data.message || err.response.data.error)) ||
+          (err.response && err.response.status
+            ? `Status ${err.response.status}: ${err.response.statusText}`
+            : err.message) ||
+          "Unknown error occurred."
       );
     } finally {
       setLoading(false);
@@ -154,24 +171,6 @@ function DrugVerifier() {
       >
         {loading ? "Verifying..." : "Verify"}
       </button>
-
-      <button
-        onClick={handleGetAllDrugs} // Button to trigger fetching all drugs
-        disabled={loading}
-        style={{
-          padding: "8px 15px",
-          backgroundColor: "#28a745", // Green color
-          color: "white",
-          border: "none",
-          borderRadius: "4px",
-          cursor: "pointer",
-          marginLeft: "10px",
-        }}
-      >
-        {loading ? "Loading All..." : "Get All Drugs"}
-      </button>
-
-      {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
 
       {verificationResult && (
         <div
