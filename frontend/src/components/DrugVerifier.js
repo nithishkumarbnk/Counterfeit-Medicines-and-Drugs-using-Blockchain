@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import axios from "axios"; // Add this import
 
+const REACT_APP_BACKEND_URL =
+  "https://counterfeit-medicines-and-drugs-using.onrender.com";
 function DrugVerifier() {
   const [drugId, setDrugId] = useState("");
   const [allDrugsData, setAllDrugsData] = useState(null); // Renamed to avoid conflict with function
