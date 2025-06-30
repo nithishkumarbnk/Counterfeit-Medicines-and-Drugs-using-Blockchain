@@ -3,26 +3,23 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-// --- CRITICAL CHANGE START ---
-// Import the entire web3 module and then correctly access the Web3 constructor.
-// This handles cases where Web3 might be the default export or a named export.
-const Web3Module = require("web3");
-const Web3 = Web3Module.default || Web3Module; // Use .default if it exists, otherwise use the module directly.
-const { HttpProvider, WebsocketProvider } = require("web3-providers");
-// --- CRITICAL CHANGE END ---
+const Web3 = require("web3");
+
 const path = require("path");
 const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const web3 = new Web3(
+  new Web3.providers.HttpProvider(process.env.WEB3_PROVIDER_URL)
+);
 
 // --- Global Variable Declarations ---
 const { MongoClient } = require("mongodb");
 const MONGODB_URI = process.env.MONGODB_URI;
 let mongoDb; // MongoDB client instance
 
-let web3; // Web3 instance
 let drugTrackingContract; // Smart contract instance
 let contractAddress; // Smart contract address
 
@@ -54,7 +51,7 @@ web3.eth
     process.exit(1); // Exit if Web3 connection fails
   });
 
-// --- Add Private Key to Web3 Wallet for Signing ---
+// --- Add Private Key to Web3 Wallet for Signing (NOW it's safe to call) ---
 const manufacturerPrivateKey = process.env.MANUFACTURER_PRIVATE_KEY;
 if (manufacturerPrivateKey) {
   try {
@@ -68,6 +65,7 @@ if (manufacturerPrivateKey) {
       "Error adding manufacturer private key to web3 wallet:",
       e.message
     );
+    // In a production environment, you might want to exit or log this more severely
   }
 } else {
   console.warn(
@@ -95,7 +93,7 @@ const loadContract = async () => {
   try {
     const contractPath = path.resolve(
       __dirname,
-      "../blockchain/build/contracts/DrugTracking.json" // Corrected path assuming 'blockchain' is sibling to 'backend'
+      "../blockchain_artifacts/contracts/DrugTracking.json"
     );
     const contractArtifact = JSON.parse(fs.readFileSync(contractPath, "utf8"));
 
@@ -111,6 +109,9 @@ const loadContract = async () => {
     contractAddress = contractArtifact.networks[networkIdString].address;
     drugTrackingContract = new web3.eth.Contract(contractABI, contractAddress);
     console.log(`Connected to DrugTracking contract at: ${contractAddress}`);
+
+    // The manufacturerPrivateKey logic was moved outside loadContract
+    // as it depends on web3 being initialized.
   } catch (error) {
     console.error("Failed to load contract or wallet:", error.message);
     process.exit(1);
