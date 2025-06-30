@@ -97,23 +97,28 @@ function DrugVerifier() {
   return (
     <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
       <h2>Verify Drug Authenticity</h2>
-      <h3>Check Role</h3>
-      <input
-        type="text"
-        placeholder="Address to check role"
-        value={checkAddress}
-        onChange={(e) => setCheckAddress(e.target.value)}
-      />
-      <select value={checkRole} onChange={(e) => setCheckRole(e.target.value)}>
-        <option value="MANUFACTURER_ROLE">Manufacturer</option>
-        <option value="DISTRIBUTOR_ROLE">Distributor</option>
-        <option value="PHARMACY_ROLE">Pharmacy</option>
-        <option value="REGULATOR_ROLE">Regulator</option>
-        <option value="DEFAULT_ADMIN_ROLE">Admin</option>
-      </select>
-      <button onClick={handleCheckRole} disabled={loading}>
-        Check Role
-      </button>
+      <li>
+        <h3>Check Role</h3>
+        <input
+          type="text"
+          placeholder="Address to check role"
+          value={checkAddress}
+          onChange={(e) => setCheckAddress(e.target.value)}
+        />
+        <select
+          value={checkRole}
+          onChange={(e) => setCheckRole(e.target.value)}
+        >
+          <option value="MANUFACTURER_ROLE">Manufacturer</option>
+          <option value="DISTRIBUTOR_ROLE">Distributor</option>
+          <option value="PHARMACY_ROLE">Pharmacy</option>
+          <option value="REGULATOR_ROLE">Regulator</option>
+          <option value="DEFAULT_ADMIN_ROLE">Admin</option>
+        </select>
+        <button onClick={handleCheckRole} disabled={loading}>
+          Check Role
+        </button>
+      </li>
 
       {roleCheckResult && (
         <div>
@@ -122,6 +127,7 @@ function DrugVerifier() {
           <p>Has Role: {roleCheckResult.hasRole ? "Yes" : "No"}</p>
         </div>
       )}
+      <br></br>
       <input
         type="text"
         placeholder="Enter Drug ID (e.g., QR scan)"
