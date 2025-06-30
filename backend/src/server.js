@@ -2,69 +2,37 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-// --- CHANGE START ---
-// Import Web3 and its providers explicitly
-const { Web3 } = require("web3");
-const { HttpProvider, WebsocketProvider } = require("web3-providers"); // Import providers
-// --- CHANGE END ---
+const Web3 = require("web3").default;
 const path = require("path");
-const { MongoClient } = require("mongodb");
 const fs = require("fs");
 require("dotenv").config(); // Load environment variables from .env
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI;
 
 // Middleware
 app.use(cors()); // Enable CORS for all routes
 app.use(bodyParser.json()); // To parse JSON request bodies
 
 // --- Web3 and Smart Contract Setup ---
-let web3; // Declare web3 here, initialize based on protocol
-if (
-  process.env.WEB3_PROVIDER_URL &&
-  process.env.WEB3_PROVIDER_URL.startsWith("wss://")
-) {
-  // --- CHANGE START ---
-  web3 = new Web3(
-    new WebsocketProvider(process.env.WEB3_PROVIDER_URL) // Use imported WebsocketProvider
-  );
-  // --- CHANGE END ---
-} else if (
-  process.env.WEB3_PROVIDER_URL &&
-  process.env.WEB3_PROVIDER_URL.startsWith("http")
-) {
-  // --- CHANGE START ---
-  web3 = new Web3(
-    new HttpProvider(process.env.WEB3_PROVIDER_URL) // Use imported HttpProvider
-  );
-  // --- CHANGE END ---
-} else {
-  web3 = new Web3("http://127.0.0.1:8545"); // Fallback for local Ganache
-}
+const web3 = new Web3(process.env.WEB3_PROVIDER_URL || "http://127.0.0.1:8545");
 
 let drugTrackingContract;
 let contractAddress;
-let mongoDb;
 
 // --- IMPORTANT ADDITION: Add Private Key to Web3 Wallet for Signing ---
 const manufacturerPrivateKey = process.env.MANUFACTURER_PRIVATE_KEY;
-let loadedAccountAddress = null; // Declare here to be accessible globally
 if (manufacturerPrivateKey) {
   try {
     // Add the private key to the web3 wallet. This allows the server to sign transactions.
     web3.eth.accounts.wallet.add(manufacturerPrivateKey);
-    loadedAccountAddress = web3.eth.accounts.wallet[0].address;
-    console.log(
-      `Manufacturer account ${loadedAccountAddress} added to web3 wallet for signing.`
-    );
+    console.log("Manufacturer account added to web3 wallet for signing.");
   } catch (e) {
     console.error(
       "Error adding manufacturer private key to web3 wallet:",
       e.message
     );
-    // In a production environment, you might want to exit or log this more severely
+    // In a production environment, you might want t  o exit or log this more severely
   }
 } else {
   console.warn(
@@ -73,25 +41,13 @@ if (manufacturerPrivateKey) {
 }
 // --- END IMPORTANT ADDITION ---
 
-async function connectToMongoDb() {
-  try {
-    const client = new MongoClient(MONGODB_URI);
-    await client.connect();
-    mongoDb = client.db("drug_tracking_db"); // Connect to the same DB as indexer
-    console.log("Backend successfully connected to MongoDB Atlas.");
-  } catch (error) {
-    console.error("Backend failed to connect to MongoDB Atlas:", error);
-    process.exit(1); // Exit if DB connection fails
-  }
-}
-
 // Function to load contract ABI and address
 const loadContract = async () => {
   try {
     // Path to the compiled contract artifact
     const contractPath = path.resolve(
       __dirname,
-      "../blockchain/build/contracts/DrugTracking.json" // Corrected path assuming 'blockchain' is sibling to 'backend'
+      "../blockchain_artifacts/contracts/DrugTracking.json"
     );
     const contractArtifact = JSON.parse(fs.readFileSync(contractPath, "utf8"));
 
@@ -102,10 +58,7 @@ const loadContract = async () => {
     console.log(`Detected Network ID: ${networkIdString}`);
 
     // Check if the contract is deployed on the detected network
-    if (
-      !contractArtifact.networks ||
-      !contractArtifact.networks[networkIdString]
-    ) {
+    if (!contractArtifact.networks[networkIdString]) {
       throw new Error(
         `Contract not deployed on network with ID ${networkIdString}. Check your truffle-config.js and ensure contract is migrated.`
       );
@@ -145,7 +98,10 @@ app.post("/api/drug/manufacture", async (req, res) => {
 
     // --- IMPORTANT ADDITION: Verify manufacturerAddress is the one loaded ---
     // The address provided by the frontend must match the private key loaded on the server
-    // loadedAccountAddress is already set globally
+    const loadedAccountAddress = web3.eth.accounts.wallet[0]
+      ? web3.eth.accounts.wallet[0].address
+      : null;
+
     if (
       !loadedAccountAddress ||
       loadedAccountAddress.toLowerCase() !== manufacturerAddress.toLowerCase()
@@ -198,7 +154,10 @@ app.post("/api/drug/transfer", async (req, res) => {
     }
 
     // --- IMPORTANT ADDITION: Verify currentOwnerAddress for transfer ---
-    // loadedAccountAddress is already set globally
+    const loadedAccountAddress = web3.eth.accounts.wallet[0]
+      ? web3.eth.accounts.wallet[0].address
+      : null;
+
     if (
       !loadedAccountAddress ||
       loadedAccountAddress.toLowerCase() !== currentOwnerAddress.toLowerCase()
@@ -227,52 +186,29 @@ app.post("/api/drug/transfer", async (req, res) => {
   }
 });
 
-// GET /api/verifyDrug/:drugId - Modified to use MongoDB
-app.get("/api/verifyDrug/:id", async (req, res) => {
-  // Added /api/
-  const { id } = req.params;
+// GET /api/drug/verify/:drugId
+app.get("/api/drug/verify/:drugId", async (req, res) => {
+  const drugId = req.params.drugId;
+
   try {
-    const drug = await mongoDb.collection("drugs").findOne({ _id: id });
+    const result = await drugTrackingContract.methods.verifyDrug(drugId).call();
 
-    if (!drug) {
-      return res.status(404).json({ message: "Drug not found in database." });
-    }
+    // The result from .call() is an array-like object with named properties
+    const verificationData = {
+      productId: result.productId,
+      batchId: result.batchId,
+      manufacturer: result.manufacturer,
+      currentOwner: result.currentOwner,
+      status: result.status,
+      history: result.history,
+    };
 
-    const history = await mongoDb
-      .collection("drugHistoryEvents")
-      .find({ drugId: id })
-      .sort({ blockNumber: 1, logIndex: 1 })
-      .toArray();
-
-    res.json({
-      productId: drug.productId,
-      batchId: drug.batchId,
-      manufacturer: drug.manufacturerAddress,
-      currentOwner: drug.currentOwnerAddress,
-      status: drug.status,
-      history: history.map((entry) => ({
-        eventType: entry.eventType,
-        fromAddress: entry.fromAddress,
-        toAddress: entry.toAddress,
-        details: entry.details,
-        timestamp: entry.eventTimestamp,
-      })),
-    });
+    res.status(200).json(verificationData);
   } catch (error) {
-    console.error("Error verifying drug from MongoDB:", error);
-    res.status(500).json({ message: "Error verifying drug." });
-  }
-});
-
-// GET /api/getAllDrugs - Modified to use MongoDB
-app.get("/api/getAllDrugs", async (req, res) => {
-  // Added /api/
-  try {
-    const drugs = await mongoDb.collection("drugs").find({}).toArray();
-    res.json(drugs);
-  } catch (error) {
-    console.error("Error fetching all drugs from MongoDB:", error);
-    res.status(500).json({ message: "Error fetching all drugs." });
+    console.error("Error verifying drug:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to verify drug", details: error.message });
   }
 });
 
@@ -285,16 +221,42 @@ app.post("/api/sensor-data", async (req, res) => {
     )}`
   );
 
+  // Example: Check for cold chain violation and log to blockchain
   if (temperature < 2 || temperature > 8) {
+    // Example threshold for cold chain
     const violationDetails = `Temperature out of range (${temperature}°C). Expected 2-8°C.`;
     try {
-      let actualSenderAddress = loadedAccountAddress; // Use the loaded account as default
+      // --- IMPORTANT ADDITION: Use the loaded private key for senderAddress ---
+      const loadedAccountAddress = web3.eth.accounts.wallet[0]
+        ? web3.eth.accounts.wallet[0].address
+        : null;
 
-      if (!actualSenderAddress) {
-        return res.status(500).json({
-          error: "No signing account configured on the server for sensor data.",
-        });
+      // If senderAddress is provided, it must match the loaded account.
+      // If not provided, we assume the loaded account is the sender.
+      let actualSenderAddress;
+      if (senderAddress) {
+        if (
+          loadedAccountAddress &&
+          loadedAccountAddress.toLowerCase() === senderAddress.toLowerCase()
+        ) {
+          actualSenderAddress = senderAddress;
+        } else {
+          return res.status(400).json({
+            error:
+              "Sender address provided does not match the configured signing account on the server for sensor data.",
+          });
+        }
+      } else {
+        if (loadedAccountAddress) {
+          actualSenderAddress = loadedAccountAddress;
+        } else {
+          return res.status(500).json({
+            error:
+              "No sender address provided and no signing account configured on the server for sensor data.",
+          });
+        }
       }
+      // --- END IMPORTANT ADDITION ---
 
       const receipt = await drugTrackingContract.methods
         .logColdChainViolation(drugId, violationDetails)
@@ -307,29 +269,20 @@ app.post("/api/sensor-data", async (req, res) => {
         "Failed to log cold chain violation on blockchain:",
         logError.message
       );
-      return res.status(500).json({
-        error: "Failed to log cold chain violation",
-        details: logError.message,
-      });
     }
   }
+
+  // In a real application, you would also store this data in an off-chain database
+  // for detailed analytics and historical records.
 
   res.status(200).json({ message: "Sensor data received successfully" });
 });
 
 // Start the server after loading the contract
-loadContract()
-  .then(() => {
-    app.listen(PORT, async () => {
-      await connectToMongoDb(); // Connect to MongoDB before starting server
-
-      console.log(`Node.js Backend listening on port ${PORT}`);
-      console.log(
-        `Connected to Web3 Provider: ${process.env.WEB3_PROVIDER_URL}`
-      );
-    });
-  })
-  .catch((error) => {
-    console.error("Failed to initialize backend:", error);
-    process.exit(1);
+loadContract().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Node.js Backend listening on port ${PORT}`);
+    // The web3.currentProvider.host might be undefined if using Infura/Alchemy
+    console.log(`Connected to Web3 Provider: ${process.env.WEB3_PROVIDER_URL}`);
   });
+});
