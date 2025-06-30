@@ -91,7 +91,7 @@ const loadContract = async () => {
   try {
     const contractPath = path.resolve(
       __dirname,
-      "../blockchain/build/contracts/DrugTracking.json" // Corrected path assuming 'blockchain' is sibling to 'backend'
+      "../blockchain_artifacts/contracts/DrugTracking.json"
     );
     const contractArtifact = JSON.parse(fs.readFileSync(contractPath, "utf8"));
 
