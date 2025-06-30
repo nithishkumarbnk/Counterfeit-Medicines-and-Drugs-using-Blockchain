@@ -1,9 +1,14 @@
-// frontend/src/components/DrugVerifier.js
 import React, { useState } from "react";
-import axios from "axios";
+import axios from "axios"; // Add this import
+
+// Define your backend API base URL
+// If running locally: const API_BASE_URL = "http://localhost:5000/api";
+// If deployed on Render: const API_BASE_URL = "YOUR_RENDER_BACKEND_URL/api";
+const API_BASE_URL = "http://localhost:5000/api"; // CHANGE THIS TO YOUR ACTUAL BACKEND URL
 
 function DrugVerifier() {
   const [drugId, setDrugId] = useState("");
+  const [allDrugsData, setAllDrugsData] = useState(null); // Renamed to avoid conflict with function
   const [verificationResult, setVerificationResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,9 +22,7 @@ function DrugVerifier() {
     }
     setLoading(true);
     try {
-      const response = await axios.get(
-        `${process.env.REACT_APP_BACKEND_URL}/api/drug/verify/${drugId}`
-      );
+      const response = await axios.get(`${API_BASE_URL}/verifyDrug/${drugId}`); // Corrected API call
       setVerificationResult(response.data);
     } catch (err) {
       console.error(
@@ -28,7 +31,33 @@ function DrugVerifier() {
       );
       setError(
         "Error verifying drug: " +
-          (err.response ? err.response.data.error : err.message)
+          (err.response
+            ? err.response.message || err.response.data.error
+            : err.message) // Improved error message
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGetAllDrugs = async () => {
+    // Renamed function for clarity
+    setAllDrugsData(null);
+    setError("");
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/getAllDrugs`); // Corrected API call
+      setAllDrugsData(response.data);
+    } catch (err) {
+      console.error(
+        "Error fetching all drugs:",
+        err.response ? err.response.data : err.message
+      );
+      setError(
+        "Error fetching all drugs: " +
+          (err.response
+            ? err.response.message || err.response.data.error
+            : err.message)
       );
     } finally {
       setLoading(false);
@@ -65,11 +94,34 @@ function DrugVerifier() {
         {loading ? "Verifying..." : "Verify"}
       </button>
 
-      {error && <p className="error-message">{error}</p>}
+      <button
+        onClick={handleGetAllDrugs} // Button to trigger fetching all drugs
+        disabled={loading}
+        style={{
+          padding: "8px 15px",
+          backgroundColor: "#28a745", // Green color
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer",
+          marginLeft: "10px",
+        }}
+      >
+        {loading ? "Loading All..." : "Get All Drugs"}
+      </button>
+
+      {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
 
       {verificationResult && (
-        <div className="verification-result">
-          <h3>Verification Details:</h3>
+        <div
+          style={{
+            border: "1px solid #eee",
+            padding: "15px",
+            marginTop: "20px",
+            borderRadius: "8px",
+          }}
+        >
+          <h3>Verification Details for Drug ID: {drugId}</h3>
           <p>
             <strong>Product ID:</strong> {verificationResult.productId}
           </p>
@@ -86,11 +138,53 @@ function DrugVerifier() {
             <strong>Status:</strong> {verificationResult.status}
           </p>
           <h4>History:</h4>
-          <ul>
-            {verificationResult.history.map((event, index) => (
-              <li key={index}>{event}</li>
-            ))}
-          </ul>
+          {verificationResult.history.length > 0 ? (
+            <ul>
+              {verificationResult.history.map((event, index) => (
+                <li key={index}>
+                  <strong>{event.eventType}:</strong> {event.details} (Block:{" "}
+                  {event.blockNumber}, Time:{" "}
+                  {new Date(event.timestamp).toLocaleString()})
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No history available.</p>
+          )}
+        </div>
+      )}
+
+      {allDrugsData && (
+        <div
+          style={{
+            border: "1px solid #eee",
+            padding: "15px",
+            marginTop: "20px",
+            borderRadius: "8px",
+          }}
+        >
+          <h3>All Tracked Drugs:</h3>
+          {allDrugsData.length > 0 ? (
+            <ul>
+              {allDrugsData.map((drug) => (
+                <li
+                  key={drug._id}
+                  style={{
+                    marginBottom: "10px",
+                    borderBottom: "1px dashed #ccc",
+                    paddingBottom: "5px",
+                  }}
+                >
+                  <strong>Drug ID:</strong> {drug._id} <br />
+                  <strong>Product ID:</strong> {drug.productId} <br />
+                  <strong>Status:</strong> {drug.status} <br />
+                  <strong>Current Owner:</strong> {drug.currentOwnerAddress}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No drugs found in the database.</p>
+          )}
         </div>
       )}
     </div>
