@@ -3,7 +3,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const { Web3 } = require("web3");
+const Web3 = require("web3");
 const { HttpProvider, WebsocketProvider } = require("web3-providers");
 const path = require("path");
 const fs = require("fs");
