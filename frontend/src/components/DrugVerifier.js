@@ -23,7 +23,7 @@ function DrugVerifier() {
     setLoading(true);
     try {
       const response = await axios.get(
-        `${API_BASE_URL}/hasRole/${checkRole}/${checkAddress}`
+        `${REACT_APP_BACKEND_URL}/hasRole/${checkRole}/${checkAddress}`
       );
       setRoleCheckResult(response.data);
     } catch (err) {
