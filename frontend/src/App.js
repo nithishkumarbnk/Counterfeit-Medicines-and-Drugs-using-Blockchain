@@ -1,5 +1,6 @@
 // frontend/src/App.js
 import React, { useState, useEffect } from "react";
+import axios from "axios"; // <--- ADD THIS LINE
 import {
   AppBar,
   Toolbar,
@@ -34,21 +35,48 @@ function App() {
 
   // Function to fetch user roles after successful login
   // In a real app, this would call a backend endpoint to get roles for the logged-in user
-  const fetchUserRoles = (roles) => {
-    // Now directly receives roles
-    setUserRoles(roles);
+  const fetchUserRoles = async (username) => {
+    // This function is now simplified as roles come directly from login
+    // For the purpose of this App.js, we'll simulate roles based on username
+    // This part is primarily for initial setup/refresh and could be replaced
+    // by a backend call to /api/user/roles if you implement that.
+    if (username === "admin") {
+      setUserRoles([
+        "ADMIN_ROLE",
+        "MANUFACTURER_ROLE",
+        "REGULATOR_ROLE",
+        "DISTRIBUTOR_ROLE",
+        "PHARMACY_ROLE",
+      ]);
+    } else if (username === "manufacturer") {
+      setUserRoles(["MANUFACTURER_ROLE"]);
+    } else if (username === "distributor") {
+      setUserRoles(["DISTRIBUTOR_ROLE"]);
+    } else if (username === "pharmacy") {
+      setUserRoles(["PHARMACY_ROLE"]);
+    } else if (username === "regulator") {
+      setUserRoles(["REGULATOR_ROLE"]);
+    } else {
+      setUserRoles(["PUBLIC"]); // Default for non-logged in or unknown
+    }
   };
 
   useEffect(() => {
     if (authToken && loggedInUsername) {
       // If token exists on refresh, re-fetch roles (or assume based on username)
       // For this demo, we'll re-fetch from the backend's /api/user/roles endpoint
+      // This is the part that uses axios
       const getRolesOnRefresh = async () => {
         try {
-          const response = await axios.get(`${API_BASE_URL}/api/user/roles`, {
-            headers: { Authorization: `Bearer ${authToken}` },
-          });
-          setUserRoles(response.data.roles);
+          // You need to implement this /api/user/roles endpoint in your backend
+          // For now, we'll use the simulated roles from fetchUserRoles
+          // If you don't implement /api/user/roles, you can remove this axios call
+          // and just call fetchUserRoles(loggedInUsername) directly here.
+          // const response = await axios.get(`${API_BASE_URL}/api/user/roles`, {
+          //   headers: { Authorization: `Bearer ${authToken}` }
+          // });
+          // setUserRoles(response.data.roles);
+          fetchUserRoles(loggedInUsername); // Using simulated roles for now
         } catch (err) {
           console.error("Error fetching roles on refresh:", err);
           setUserRoles(["PUBLIC"]); // Fallback
@@ -61,13 +89,13 @@ function App() {
   }, [authToken, loggedInUsername]); // Re-run if token/username changes
 
   const handleLoginSuccess = (token, username, roles) => {
-    // Now receives roles
     setAuthToken(token);
     setLoggedInUsername(username);
-    localStorage.setItem("authToken", token);
+    localStorage.setItem("authToken", token); // Save token to local storage
     localStorage.setItem("loggedInUsername", username);
     fetchUserRoles(roles); // Pass roles directly
   };
+
   const handleLogout = () => {
     setAuthToken(null);
     setLoggedInUsername("");
