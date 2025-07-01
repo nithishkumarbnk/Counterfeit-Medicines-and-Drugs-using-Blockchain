@@ -186,6 +186,11 @@ async function processEvent(event) {
         await session.abortTransaction();
         return;
     }
+    let timestamp = event.timestamp;
+    if (!timestamp) {
+      const block = await web3.eth.getBlock(event.blockNumber);
+      timestamp = block.timestamp;
+    }
 
     await db.collection("drugHistoryEvents").insertOne(
       {
@@ -194,7 +199,7 @@ async function processEvent(event) {
         fromAddress: fromAddress,
         toAddress: toAddress,
         details: details,
-        eventTimestamp: new Date(Number(event.timestamp) * 1000),
+        eventTimestamp: new Date(Number(timestamp) * 1000),
         transactionHash: transactionHash,
         blockNumber: Number(blockNumber),
         logIndex: logIndex,
