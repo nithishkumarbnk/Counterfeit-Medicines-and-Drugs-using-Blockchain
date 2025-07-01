@@ -118,9 +118,7 @@ const loadContract = async () => {
       throw new Error(`Contract not deployed on network ${networkIdString}`);
     }
 
-    contractAddress =
-      process.env.CONTRACT_ADDRESS ||
-      contractArtifact.networks[networkIdString].address;
+    contractAddress = contractArtifact.networks[networkIdString].address;
     drugTrackingContract = new web3.eth.Contract(contractABI, contractAddress);
 
     console.log(`Connected to contract at: ${contractAddress}`);
@@ -343,9 +341,11 @@ app.post("/api/admin/grantRole", async (req, res) => {
       .hasRole(web3.utils.keccak256("DEFAULT_ADMIN_ROLE"), loadedAddress)
       .call();
     if (!isAdmin) {
-      return res.status(403).json({
-        error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can grant roles.",
-      });
+      return res
+        .status(403)
+        .json({
+          error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can grant roles.",
+        });
     }
 
     const tx = await drugTrackingContract.methods
@@ -408,9 +408,11 @@ app.post("/api/admin/revokeRole", async (req, res) => {
       .hasRole(web3.utils.keccak256("DEFAULT_ADMIN_ROLE"), loadedAddress)
       .call();
     if (!isAdmin) {
-      return res.status(403).json({
-        error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can revoke roles.",
-      });
+      return res
+        .status(403)
+        .json({
+          error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can revoke roles.",
+        });
     }
 
     const tx = await drugTrackingContract.methods
