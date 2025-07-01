@@ -266,7 +266,7 @@ app.post("/api/drug/manufacture", async (req, res) => {
       .send({
         from: manufacturerAddress,
         gas: 5000000,
-        gasPrice: web3.utils.toWei("3", "gwei"), // <--- ADD THIS LINE
+        gasPrice: web3.utils.toWei("30", "gwei"), // <--- ADD THIS LINE
       });
 
     res.json({ message: "Manufactured", transactionHash: tx.transactionHash });
