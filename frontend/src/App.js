@@ -34,44 +34,40 @@ function App() {
 
   // Function to fetch user roles after successful login
   // In a real app, this would call a backend endpoint to get roles for the logged-in user
-  const fetchUserRoles = async (username) => {
-    if (username === "admin") {
-      setUserRoles([
-        "ADMIN_ROLE",
-        "MANUFACTURER_ROLE",
-        "REGULATOR_ROLE",
-        "DISTRIBUTOR_ROLE",
-        "PHARMACY_ROLE",
-      ]); // Admin has all roles for demo
-    } else if (username === "manufacturer") {
-      setUserRoles(["MANUFACTURER_ROLE"]);
-    } else if (username === "distributor") {
-      setUserRoles(["DISTRIBUTOR_ROLE"]);
-    } else if (username === "pharmacy") {
-      setUserRoles(["PHARMACY_ROLE"]);
-    } else if (username === "regulator") {
-      setUserRoles(["REGULATOR_ROLE"]);
-    } else {
-      setUserRoles(["PUBLIC"]); // Default for non-logged in or unknown
-    }
+  const fetchUserRoles = (roles) => {
+    // Now directly receives roles
+    setUserRoles(roles);
   };
 
   useEffect(() => {
     if (authToken && loggedInUsername) {
-      fetchUserRoles(loggedInUsername);
+      // If token exists on refresh, re-fetch roles (or assume based on username)
+      // For this demo, we'll re-fetch from the backend's /api/user/roles endpoint
+      const getRolesOnRefresh = async () => {
+        try {
+          const response = await axios.get(`${API_BASE_URL}/api/user/roles`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          setUserRoles(response.data.roles);
+        } catch (err) {
+          console.error("Error fetching roles on refresh:", err);
+          setUserRoles(["PUBLIC"]); // Fallback
+        }
+      };
+      getRolesOnRefresh();
     } else {
       setUserRoles(["PUBLIC"]); // Ensure PUBLIC role if not logged in
     }
-  }, [authToken, loggedInUsername]);
+  }, [authToken, loggedInUsername]); // Re-run if token/username changes
 
-  const handleLoginSuccess = (token, username) => {
+  const handleLoginSuccess = (token, username, roles) => {
+    // Now receives roles
     setAuthToken(token);
     setLoggedInUsername(username);
-    localStorage.setItem("authToken", token); // Save token to local storage
+    localStorage.setItem("authToken", token);
     localStorage.setItem("loggedInUsername", username);
-    fetchUserRoles(username);
+    fetchUserRoles(roles); // Pass roles directly
   };
-
   const handleLogout = () => {
     setAuthToken(null);
     setLoggedInUsername("");

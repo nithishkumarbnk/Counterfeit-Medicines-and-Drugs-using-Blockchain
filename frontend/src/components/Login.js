@@ -17,7 +17,7 @@ function Login({ onLoginSuccess, API_BASE_URL }) {
         username,
         password,
       });
-      onLoginSuccess(response.data.token, username);
+      onLoginSuccess(response.data.token, username, response.data.roles);
     } catch (err) {
       console.error(
         "Login error:",

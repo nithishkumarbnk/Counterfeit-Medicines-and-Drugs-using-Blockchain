@@ -17,8 +17,32 @@ const PORT = process.env.PORT || 5000;
 const { MongoClient } = require("mongodb");
 const MONGODB_URI = process.env.MONGODB_URI;
 // --- NEW: Hardcoded Admin Credentials (for demo ONLY) ---
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "password123"; // CHANGE THIS IN .env FOR SECURITY
+const TEST_USERS = [
+  {
+    username: "admin",
+    password: "adminPassword",
+    roles: [
+      "ADMIN_ROLE",
+      "MANUFACTURER_ROLE",
+      "REGULATOR_ROLE",
+      "DISTRIBUTOR_ROLE",
+      "PHARMACY_ROLE",
+    ],
+  },
+  {
+    username: "manufacturer",
+    password: "manuPassword",
+    roles: ["MANUFACTURER_ROLE"],
+  },
+  {
+    username: "distributor",
+    password: "distPassword",
+    roles: ["DISTRIBUTOR_ROLE"],
+  },
+  { username: "pharmacy", password: "pharmPassword", roles: ["PHARMACY_ROLE"] },
+  { username: "regulator", password: "regPassword", roles: ["REGULATOR_ROLE"] },
+  { username: "public", password: "publicPassword", roles: ["PUBLIC"] }, // For testing public view
+];
 const SECRET_TOKEN = process.env.SECRET_TOKEN || "supersecrettoken"; // Used for simple auth
 // --- END NEW ---
 let mongoDb;
@@ -61,6 +85,7 @@ web3.eth
     console.error("Web3 connection failed:", err.message);
     process.exit(1);
   });
+
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
@@ -152,10 +177,30 @@ const loadContract = async () => {
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
 
-  if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-    res.json({ message: "Login successful", token: SECRET_TOKEN });
+  const user = TEST_USERS.find(
+    (u) => u.username === username && u.password === password
+  );
+
+  if (user) {
+    res.json({
+      message: "Login successful",
+      token: SECRET_TOKEN,
+      roles: user.roles,
+    });
   } else {
     res.status(401).json({ error: "Invalid username or password." });
+  }
+});
+app.get("/api/user/roles", authenticateToken, (req, res) => {
+  // In a real app, you'd get the username from the authenticated token
+  // For this demo, we'll assume the token implies admin role for simplicity
+  // Or, you could pass the username in the login response and retrieve roles based on that.
+  // For now, let's just return the roles of the 'admin' user if authenticated.
+  const adminUser = TEST_USERS.find((u) => u.username === "admin"); // Assuming admin is the primary user for this demo
+  if (adminUser) {
+    res.json({ roles: adminUser.roles });
+  } else {
+    res.status(500).json({ error: "Admin user not found in test data." });
   }
 });
 
