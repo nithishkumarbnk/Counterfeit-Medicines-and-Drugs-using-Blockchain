@@ -89,7 +89,6 @@ async function connectToMongoDb() {
       // is fully compatible with MongoDB Atlas's preferred TLS settings.
       tlsAllowInvalidCertificates: true, // Temporarily allow invalid certs to bypass handshake issue
       tls: true, // Ensure TLS is explicitly enabled
-      tlsInsecure: true, // Accept self-signed or unverified certs
     });
     await client.connect();
     mongoDb = client.db("drug_tracking_db");
