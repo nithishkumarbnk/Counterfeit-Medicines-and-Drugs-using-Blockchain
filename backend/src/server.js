@@ -337,15 +337,19 @@ app.post("/api/admin/grantRole", async (req, res) => {
         .json({ error: "Admin signing account not loaded." });
     }
 
-    // Ensure the loaded account has DEFAULT_ADMIN_ROLE before attempting to grant
+    // --- CRITICAL FIX HERE ---
+    // Use the correct hash for DEFAULT_ADMIN_ROLE when checking admin status
+    const DEFAULT_ADMIN_ROLE_HASH =
+      "0x0000000000000000000000000000000000000000000000000000000000000000";
     const isAdmin = await drugTrackingContract.methods
-      .hasRole(web3.utils.keccak256("DEFAULT_ADMIN_ROLE"), loadedAddress)
+      .hasRole(DEFAULT_ADMIN_ROLE_HASH, loadedAddress)
       .call();
     if (!isAdmin) {
       return res.status(403).json({
         error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can grant roles.",
       });
     }
+    // --- END CRITICAL FIX ---
 
     const tx = await drugTrackingContract.methods
       .grantRole(roleHash, accountAddress)
@@ -402,15 +406,21 @@ app.post("/api/admin/revokeRole", async (req, res) => {
         .json({ error: "Admin signing account not loaded." });
     }
 
-    // Ensure the loaded account has DEFAULT_ADMIN_ROLE before attempting to revoke
+    // --- CRITICAL FIX HERE ---
+    // Use the correct hash for DEFAULT_ADMIN_ROLE when checking admin status
+    const DEFAULT_ADMIN_ROLE_HASH =
+      "0x0000000000000000000000000000000000000000000000000000000000000000";
     const isAdmin = await drugTrackingContract.methods
-      .hasRole(web3.utils.keccak256("DEFAULT_ADMIN_ROLE"), loadedAddress)
+      .hasRole(DEFAULT_ADMIN_ROLE_HASH, loadedAddress)
       .call();
     if (!isAdmin) {
-      return res.status(403).json({
-        error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can revoke roles.",
-      });
+      return res
+        .status(403)
+        .json({
+          error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can grant roles.",
+        });
     }
+    // --- END CRITICAL FIX ---
 
     const tx = await drugTrackingContract.methods
       .revokeRole(roleHash, accountAddress)
@@ -427,7 +437,6 @@ app.post("/api/admin/revokeRole", async (req, res) => {
       .json({ error: "Failed to revoke role.", details: e.message });
   }
 });
-
 // --- Start Server ---
 loadContract()
   .then(() => {
