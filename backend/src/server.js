@@ -298,6 +298,138 @@ app.post("/api/sensor-data", async (req, res) => {
 
   res.json({ message: "Sensor data received." });
 });
+app.post("/api/admin/grantRole", async (req, res) => {
+  const { roleName, accountAddress } = req.body;
+
+  if (!roleName || !accountAddress) {
+    return res
+      .status(400)
+      .json({ error: "Missing roleName or accountAddress." });
+  }
+  if (!web3.utils.isAddress(accountAddress)) {
+    return res.status(400).json({ error: "Invalid accountAddress." });
+  }
+
+  let roleHash;
+  switch (roleName.toUpperCase()) {
+    case "MANUFACTURER_ROLE":
+      roleHash = web3.utils.keccak256("MANUFACTURER_ROLE");
+      break;
+    case "DISTRIBUTOR_ROLE":
+      roleHash = web3.utils.keccak256("DISTRIBUTOR_ROLE");
+      break;
+    case "PHARMACY_ROLE":
+      roleHash = web3.utils.keccak256("PHARMACY_ROLE");
+      break;
+    case "REGULATOR_ROLE":
+      roleHash = web3.utils.keccak256("REGULATOR_ROLE");
+      break;
+    default:
+      return res.status(400).json({ error: "Invalid role name for granting." });
+  }
+
+  try {
+    const loadedAddress = web3.eth.accounts.wallet[0]?.address;
+    if (!loadedAddress) {
+      return res
+        .status(500)
+        .json({ error: "Admin signing account not loaded." });
+    }
+
+    // Ensure the loaded account has DEFAULT_ADMIN_ROLE before attempting to grant
+    const isAdmin = await drugTrackingContract.methods
+      .hasRole(web3.utils.keccak256("DEFAULT_ADMIN_ROLE"), loadedAddress)
+      .call();
+    if (!isAdmin) {
+      return res
+        .status(403)
+        .json({
+          error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can grant roles.",
+        });
+    }
+
+    const tx = await drugTrackingContract.methods
+      .grantRole(roleHash, accountAddress)
+      .send({ from: loadedAddress, gas: 3000000 });
+
+    res.json({
+      message: `Role ${roleName} granted to ${accountAddress} successfully.`,
+      transactionHash: tx.transactionHash,
+    });
+  } catch (e) {
+    console.error("Grant role error:", e);
+    res
+      .status(500)
+      .json({ error: "Failed to grant role.", details: e.message });
+  }
+});
+
+// POST /api/admin/revokeRole
+app.post("/api/admin/revokeRole", async (req, res) => {
+  const { roleName, accountAddress } = req.body;
+
+  if (!roleName || !accountAddress) {
+    return res
+      .status(400)
+      .json({ error: "Missing roleName or accountAddress." });
+  }
+  if (!web3.utils.isAddress(accountAddress)) {
+    return res.status(400).json({ error: "Invalid accountAddress." });
+  }
+
+  let roleHash;
+  switch (roleName.toUpperCase()) {
+    case "MANUFACTURER_ROLE":
+      roleHash = web3.utils.keccak256("MANUFACTURER_ROLE");
+      break;
+    case "DISTRIBUTOR_ROLE":
+      roleHash = web3.utils.keccak256("DISTRIBUTOR_ROLE");
+      break;
+    case "PHARMACY_ROLE":
+      roleHash = web3.utils.keccak256("PHARMACY_ROLE");
+      break;
+    case "REGULATOR_ROLE":
+      roleHash = web3.utils.keccak256("REGULATOR_ROLE");
+      break;
+    default:
+      return res.status(400).json({ error: "Invalid role name for revoking." });
+  }
+
+  try {
+    const loadedAddress = web3.eth.accounts.wallet[0]?.address;
+    if (!loadedAddress) {
+      return res
+        .status(500)
+        .json({ error: "Admin signing account not loaded." });
+    }
+
+    // Ensure the loaded account has DEFAULT_ADMIN_ROLE before attempting to revoke
+    const isAdmin = await drugTrackingContract.methods
+      .hasRole(web3.utils.keccak256("DEFAULT_ADMIN_ROLE"), loadedAddress)
+      .call();
+    if (!isAdmin) {
+      return res
+        .status(403)
+        .json({
+          error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can revoke roles.",
+        });
+    }
+
+    const tx = await drugTrackingContract.methods
+      .revokeRole(roleHash, accountAddress)
+      .send({ from: loadedAddress, gas: 3000000 });
+
+    res.json({
+      message: `Role ${roleName} revoked from ${accountAddress} successfully.`,
+      transactionHash: tx.transactionHash,
+    });
+  } catch (e) {
+    console.error("Revoke role error:", e);
+    res
+      .status(500)
+      .json({ error: "Failed to revoke role.", details: e.message });
+  }
+});
 
 // --- Start Server ---
 loadContract()
