@@ -17,10 +17,11 @@ const PORT = process.env.PORT || 5000;
 const { MongoClient } = require("mongodb");
 const MONGODB_URI = process.env.MONGODB_URI;
 // --- NEW: Hardcoded Admin Credentials (for demo ONLY) ---
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const TEST_USERS = [
   {
     username: "admin",
-    password: process.env.ADMIN_PASSWORD,
+    password: ADMIN_PASSWORD,
     roles: [
       "ADMIN_ROLE",
       "MANUFACTURER_ROLE",
@@ -43,7 +44,7 @@ const TEST_USERS = [
   { username: "regulator", password: "regPassword", roles: ["REGULATOR_ROLE"] },
   { username: "public", password: "publicPassword", roles: ["PUBLIC"] }, // For testing public view
 ];
-const SECRET_TOKEN = process.env.SECRET_TOKEN || "supersecrettoken"; // Used for simple auth
+const SECRET_TOKEN = process.env.SECRET_TOKEN; // Used for simple auth
 // --- END NEW ---
 let mongoDb;
 
@@ -263,7 +264,11 @@ app.post("/api/drug/manufacture", async (req, res) => {
 
     const tx = await drugTrackingContract.methods
       .manufactureDrug(id, productId, batchId)
-      .send({ from: manufacturerAddress, gas: 5000000 });
+      .send({
+        from: manufacturerAddress,
+        gas: 5000000,
+        gasPrice: web3.utils.toWei("1", "gwei"), // <--- ADD THIS LINE
+      });
 
     res.json({ message: "Manufactured", transactionHash: tx.transactionHash });
   } catch (err) {
