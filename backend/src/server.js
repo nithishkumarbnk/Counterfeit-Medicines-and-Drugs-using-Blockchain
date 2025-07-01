@@ -20,7 +20,7 @@ const MONGODB_URI = process.env.MONGODB_URI;
 const TEST_USERS = [
   {
     username: "admin",
-    password: "adminPassword",
+    password: process.env.ADMIN_PASSWORD,
     roles: [
       "ADMIN_ROLE",
       "MANUFACTURER_ROLE",
@@ -263,7 +263,7 @@ app.post("/api/drug/manufacture", async (req, res) => {
 
     const tx = await drugTrackingContract.methods
       .manufactureDrug(id, productId, batchId)
-      .send({ from: manufacturerAddress, gas: 3000000 });
+      .send({ from: manufacturerAddress, gas: 5000000 });
 
     res.json({ message: "Manufactured", transactionHash: tx.transactionHash });
   } catch (err) {
