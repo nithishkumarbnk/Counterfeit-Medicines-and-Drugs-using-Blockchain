@@ -17,11 +17,10 @@ const PORT = process.env.PORT || 5000;
 const { MongoClient } = require("mongodb");
 const MONGODB_URI = process.env.MONGODB_URI;
 // --- NEW: Hardcoded Admin Credentials (for demo ONLY) ---
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const TEST_USERS = [
   {
     username: "admin",
-    password: ADMIN_PASSWORD,
+    password: process.env.ADMIN_PASSWORD,
     roles: [
       "ADMIN_ROLE",
       "MANUFACTURER_ROLE",
@@ -267,7 +266,7 @@ app.post("/api/drug/manufacture", async (req, res) => {
       .send({
         from: manufacturerAddress,
         gas: 5000000,
-        gasPrice: web3.utils.toWei("1", "gwei"), // <--- ADD THIS LINE
+        gasPrice: web3.utils.toWei("3", "gwei"), // <--- ADD THIS LINE
       });
 
     res.json({ message: "Manufactured", transactionHash: tx.transactionHash });
