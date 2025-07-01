@@ -10,7 +10,7 @@ WORKDIR /repo
 COPY . /repo/
 
 # Stage 1: Build the Node.js backend
-FROM node:20-slim as backend_builder
+FROM node:20 as backend_builder
 
 # Set working directory for the backend application
 WORKDIR /app
