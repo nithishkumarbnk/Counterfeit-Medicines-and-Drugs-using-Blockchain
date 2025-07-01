@@ -16,6 +16,11 @@ const PORT = process.env.PORT || 5000;
 // --- Global Variables ---
 const { MongoClient } = require("mongodb");
 const MONGODB_URI = process.env.MONGODB_URI;
+// --- NEW: Hardcoded Admin Credentials (for demo ONLY) ---
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "password123"; // CHANGE THIS IN .env FOR SECURITY
+const SECRET_TOKEN = process.env.SECRET_TOKEN || "supersecrettoken"; // Used for simple auth
+// --- END NEW ---
 let mongoDb;
 
 let web3;
@@ -56,6 +61,21 @@ web3.eth
     console.error("Web3 connection failed:", err.message);
     process.exit(1);
   });
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+
+  if (token == null) {
+    return res.status(401).json({ error: "Authentication token required." });
+  }
+
+  if (token !== SECRET_TOKEN) {
+    // Simple token validation
+    return res.status(403).json({ error: "Invalid authentication token." });
+  }
+
+  next(); // Proceed to the next middleware/route handler
+};
 
 // --- Add private key to wallet ---
 const manufacturerPrivateKey = process.env.MANUFACTURER_PRIVATE_KEY;
@@ -129,6 +149,15 @@ const loadContract = async () => {
 };
 
 // --- API Routes ---
+app.post("/api/login", (req, res) => {
+  const { username, password } = req.body;
+
+  if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+    res.json({ message: "Login successful", token: SECRET_TOKEN });
+  } else {
+    res.status(401).json({ error: "Invalid username or password." });
+  }
+});
 
 app.get("/api/hasRole/:roleName/:address", async (req, res) => {
   const { roleName, address } = req.params;
@@ -414,11 +443,9 @@ app.post("/api/admin/revokeRole", async (req, res) => {
       .hasRole(DEFAULT_ADMIN_ROLE_HASH, loadedAddress)
       .call();
     if (!isAdmin) {
-      return res
-        .status(403)
-        .json({
-          error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can grant roles.",
-        });
+      return res.status(403).json({
+        error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can grant roles.",
+      });
     }
     // --- END CRITICAL FIX ---
 

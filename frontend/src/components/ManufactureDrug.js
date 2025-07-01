@@ -1,13 +1,13 @@
-// frontend/src/components/DrugTransfer.js
+// frontend/src/components/ManufactureDrug.js
 import React, { useState } from "react";
 import axios from "axios";
 import { TextField, Button, Box, Typography, Paper } from "@mui/material";
 
-function DrugTransfer({ API_BASE_URL, authToken }) {
+function ManufactureDrug({ API_BASE_URL, authToken }) {
   const [id, setId] = useState("");
-  const [newOwnerAddress, setNewOwnerAddress] = useState("");
-  const [newStatus, setNewStatus] = useState("");
-  const [currentOwnerAddress, setCurrentOwnerAddress] = useState("");
+  const [productId, setProductId] = useState("");
+  const [batchId, setBatchId] = useState("");
+  const [manufacturerAddress, setManufacturerAddress] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,12 +20,12 @@ function DrugTransfer({ API_BASE_URL, authToken }) {
 
     try {
       const response = await axios.post(
-        `${API_BASE_URL}/api/drug/transfer`,
+        `${API_BASE_URL}/api/drug/manufacture`,
         {
           id,
-          newOwnerAddress,
-          newStatus,
-          currentOwnerAddress,
+          productId,
+          batchId,
+          manufacturerAddress,
         },
         {
           headers: {
@@ -38,12 +38,12 @@ function DrugTransfer({ API_BASE_URL, authToken }) {
         response.data.message + ` Tx Hash: ${response.data.transactionHash}`
       );
       setId("");
-      setNewOwnerAddress("");
-      setNewStatus("");
-      // currentOwnerAddress might be kept for convenience
+      setProductId("");
+      setBatchId("");
+      // manufacturerAddress might be kept for convenience
     } catch (err) {
       console.error(
-        "Transfer error:",
+        "Manufacturing error:",
         err.response ? err.response.data : err.message
       );
       setError(
@@ -57,42 +57,41 @@ function DrugTransfer({ API_BASE_URL, authToken }) {
   return (
     <Paper elevation={3} sx={{ p: 3, mt: 3 }}>
       <Typography variant="h5" component="h2" gutterBottom>
-        Transfer Drug Ownership
+        Manufacture New Drug
       </Typography>
       <form onSubmit={handleSubmit}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <TextField
-            label="Drug ID"
+            label="Drug ID (Unique)"
             variant="outlined"
             value={id}
             onChange={(e) => setId(e.target.value)}
             required
           />
           <TextField
-            label="New Owner Ethereum Address"
+            label="Product ID"
             variant="outlined"
-            value={newOwnerAddress}
-            onChange={(e) => setNewOwnerAddress(e.target.value)}
-            required
-            helperText="Address of the recipient."
-          />
-          <TextField
-            label="New Status (e.g., IN_TRANSIT, RECEIVED_DISTRIBUTOR)"
-            variant="outlined"
-            value={newStatus}
-            onChange={(e) => setNewStatus(e.target.value)}
+            value={productId}
+            onChange={(e) => setProductId(e.target.value)}
             required
           />
           <TextField
-            label="Your Ethereum Address (Current Owner)"
+            label="Batch ID"
             variant="outlined"
-            value={currentOwnerAddress}
-            onChange={(e) => setCurrentOwnerAddress(e.target.value)}
+            value={batchId}
+            onChange={(e) => setBatchId(e.target.value)}
             required
-            helperText="This must be the current owner's address on the blockchain (associated with server's private key)."
+          />
+          <TextField
+            label="Your Ethereum Address (Manufacturer)"
+            variant="outlined"
+            value={manufacturerAddress}
+            onChange={(e) => setManufacturerAddress(e.target.value)}
+            required
+            helperText="This must be the address associated with the server's private key (deployer address)."
           />
           <Button type="submit" variant="contained" disabled={loading}>
-            {loading ? "Transferring..." : "Transfer Drug"}
+            {loading ? "Manufacturing..." : "Manufacture Drug"}
           </Button>
         </Box>
       </form>
@@ -110,4 +109,4 @@ function DrugTransfer({ API_BASE_URL, authToken }) {
   );
 }
 
-export default DrugTransfer;
+export default ManufactureDrug;

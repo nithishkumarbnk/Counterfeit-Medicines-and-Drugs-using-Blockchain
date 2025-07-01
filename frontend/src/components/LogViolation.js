@@ -1,13 +1,12 @@
-// frontend/src/components/DrugTransfer.js
+// frontend/src/components/LogViolation.js
 import React, { useState } from "react";
 import axios from "axios";
 import { TextField, Button, Box, Typography, Paper } from "@mui/material";
 
-function DrugTransfer({ API_BASE_URL, authToken }) {
-  const [id, setId] = useState("");
-  const [newOwnerAddress, setNewOwnerAddress] = useState("");
-  const [newStatus, setNewStatus] = useState("");
-  const [currentOwnerAddress, setCurrentOwnerAddress] = useState("");
+function LogViolation({ API_BASE_URL, authToken }) {
+  const [drugId, setDrugId] = useState("");
+  const [temperature, setTemperature] = useState("");
+  const [humidity, setHumidity] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,13 +18,16 @@ function DrugTransfer({ API_BASE_URL, authToken }) {
     setLoading(true);
 
     try {
+      // For simplicity, we'll send a dummy senderAddress or let backend use loaded key
+      // The backend will use the loaded MANUFACTURER_PRIVATE_KEY for signing
       const response = await axios.post(
-        `${API_BASE_URL}/api/drug/transfer`,
+        `${API_BASE_URL}/api/sensor-data`,
         {
-          id,
-          newOwnerAddress,
-          newStatus,
-          currentOwnerAddress,
+          drugId,
+          timestamp: Math.floor(Date.now() / 1000), // Current Unix timestamp in seconds
+          temperature: parseFloat(temperature),
+          humidity: parseFloat(humidity),
+          // senderAddress is handled by backend (MANUFACTURER_PRIVATE_KEY)
         },
         {
           headers: {
@@ -34,16 +36,13 @@ function DrugTransfer({ API_BASE_URL, authToken }) {
           },
         }
       );
-      setMessage(
-        response.data.message + ` Tx Hash: ${response.data.transactionHash}`
-      );
-      setId("");
-      setNewOwnerAddress("");
-      setNewStatus("");
-      // currentOwnerAddress might be kept for convenience
+      setMessage(response.data.message);
+      setDrugId("");
+      setTemperature("");
+      setHumidity("");
     } catch (err) {
       console.error(
-        "Transfer error:",
+        "Logging violation error:",
         err.response ? err.response.data : err.message
       );
       setError(
@@ -57,42 +56,36 @@ function DrugTransfer({ API_BASE_URL, authToken }) {
   return (
     <Paper elevation={3} sx={{ p: 3, mt: 3 }}>
       <Typography variant="h5" component="h2" gutterBottom>
-        Transfer Drug Ownership
+        Log Cold Chain Violation
       </Typography>
       <form onSubmit={handleSubmit}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <TextField
             label="Drug ID"
             variant="outlined"
-            value={id}
-            onChange={(e) => setId(e.target.value)}
+            value={drugId}
+            onChange={(e) => setDrugId(e.target.value)}
             required
           />
           <TextField
-            label="New Owner Ethereum Address"
+            label="Temperature (°C)"
             variant="outlined"
-            value={newOwnerAddress}
-            onChange={(e) => setNewOwnerAddress(e.target.value)}
+            type="number"
+            value={temperature}
+            onChange={(e) => setTemperature(e.target.value)}
             required
-            helperText="Address of the recipient."
+            helperText="Violation if outside 2-8°C"
           />
           <TextField
-            label="New Status (e.g., IN_TRANSIT, RECEIVED_DISTRIBUTOR)"
+            label="Humidity (%)"
             variant="outlined"
-            value={newStatus}
-            onChange={(e) => setNewStatus(e.target.value)}
+            type="number"
+            value={humidity}
+            onChange={(e) => setHumidity(e.target.value)}
             required
-          />
-          <TextField
-            label="Your Ethereum Address (Current Owner)"
-            variant="outlined"
-            value={currentOwnerAddress}
-            onChange={(e) => setCurrentOwnerAddress(e.target.value)}
-            required
-            helperText="This must be the current owner's address on the blockchain (associated with server's private key)."
           />
           <Button type="submit" variant="contained" disabled={loading}>
-            {loading ? "Transferring..." : "Transfer Drug"}
+            {loading ? "Logging..." : "Log Violation"}
           </Button>
         </Box>
       </form>
@@ -110,4 +103,4 @@ function DrugTransfer({ API_BASE_URL, authToken }) {
   );
 }
 
-export default DrugTransfer;
+export default LogViolation;
