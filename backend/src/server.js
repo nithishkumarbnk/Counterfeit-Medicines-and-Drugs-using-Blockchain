@@ -233,7 +233,7 @@ app.get("/api/hasRole/:roleName/:address", async (req, res) => {
     default:
       return res.status(400).json({ error: "Invalid role name." });
   }
-
+  app;
   try {
     const result = await drugTrackingContract.methods
       .hasRole(roleHash, address)
@@ -261,18 +261,33 @@ app.post("/api/drug/manufacture", async (req, res) => {
       return res.status(400).json({ error: "Signing address mismatch." });
     }
 
-    const tx = await drugTrackingContract.methods
-      .manufactureDrug(id, productId, batchId)
-      .send({
-        from: manufacturerAddress,
-        gas: 5000000,
-        gasPrice: web3.utils.toWei("3", "gwei"), // <--- ADD THIS LINE
-      });
+    const contractMethod = drugTrackingContract.methods.manufactureDrug(
+      id,
+      productId,
+      batchId
+    );
+
+    // 🔍 Estimate gas
+    const estimatedGas = await contractMethod.estimateGas({
+      from: manufacturerAddress,
+    });
+
+    // ✅ Execute transaction
+    const tx = await contractMethod.send({
+      from: manufacturerAddress,
+      gas: estimatedGas + 10000, // Add slight buffer
+      gasPrice: web3.utils.toWei("5", "gwei"),
+    });
+    console.log(`Estimated Gas: ${estimatedGas}`);
+    console.log(`Gas Price (wei): ${web3.utils.toWei("5", "gwei")}`);
 
     res.json({ message: "Manufactured", transactionHash: tx.transactionHash });
   } catch (err) {
-    console.error("Manufacture error:", err);
-    res.status(500).json({ error: "Failed to manufacture drug." });
+    console.error("Manufacture error:", err.message || err);
+    res.status(500).json({
+      error: "Failed to manufacture drug.",
+      details: err.message || "Unknown error",
+    });
   }
 });
 
