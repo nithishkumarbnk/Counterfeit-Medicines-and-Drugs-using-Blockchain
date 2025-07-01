@@ -138,10 +138,11 @@ app.get("/api/hasRole/:roleName/:address", async (req, res) => {
   }
 
   let roleHash;
-  // Correctly hash the role names for AccessControl
   switch (roleName.toUpperCase()) {
     case "DEFAULT_ADMIN_ROLE":
-      roleHash = web3.utils.keccak256("DEFAULT_ADMIN_ROLE");
+      // Special case for DEFAULT_ADMIN_ROLE: its bytes32 value is 0x00...00
+      roleHash =
+        "0x0000000000000000000000000000000000000000000000000000000000000000";
       break;
     case "MANUFACTURER_ROLE":
       roleHash = web3.utils.keccak256("MANUFACTURER_ROLE");
@@ -341,11 +342,9 @@ app.post("/api/admin/grantRole", async (req, res) => {
       .hasRole(web3.utils.keccak256("DEFAULT_ADMIN_ROLE"), loadedAddress)
       .call();
     if (!isAdmin) {
-      return res
-        .status(403)
-        .json({
-          error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can grant roles.",
-        });
+      return res.status(403).json({
+        error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can grant roles.",
+      });
     }
 
     const tx = await drugTrackingContract.methods
@@ -408,11 +407,9 @@ app.post("/api/admin/revokeRole", async (req, res) => {
       .hasRole(web3.utils.keccak256("DEFAULT_ADMIN_ROLE"), loadedAddress)
       .call();
     if (!isAdmin) {
-      return res
-        .status(403)
-        .json({
-          error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can revoke roles.",
-        });
+      return res.status(403).json({
+        error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can revoke roles.",
+      });
     }
 
     const tx = await drugTrackingContract.methods
