@@ -255,6 +255,28 @@ app.get("/api/hasRole/:roleName/:address", async (req, res) => {
     res.status(500).json({ error: "Blockchain role check failed." });
   }
 });
+app.get(
+  "/api/drugs/byManufacturer/:address",
+  authenticateToken,
+  async (req, res) => {
+    const { address } = req.params;
+    if (!web3.utils.isAddress(address)) {
+      return res.status(400).json({ error: "Invalid Ethereum address." });
+    }
+    try {
+      const drugs = await mongoDb
+        .collection("drugs")
+        .find({ manufacturerAddress: address })
+        .toArray();
+      res.json(drugs);
+    } catch (error) {
+      console.error("Error fetching drugs by manufacturer:", error);
+      res
+        .status(500)
+        .json({ message: "Error fetching drugs by manufacturer." });
+    }
+  }
+);
 
 app.post("/api/drug/manufacture", async (req, res) => {
   const { id, productId, batchId, manufacturerAddress } = req.body;
