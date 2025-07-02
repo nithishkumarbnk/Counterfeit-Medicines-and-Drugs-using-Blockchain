@@ -281,37 +281,70 @@ app.get(
 app.post("/api/drug/manufacture", async (req, res) => {
   const { id, productId, batchId, manufacturerAddress } = req.body;
 
-  // ① Ensure you have the global contract instance
-  //    e.g. const drugTrackingContract = new web3.eth.Contract(ABI, ADDRESS);
+  if (!id || !productId || !batchId || !manufacturerAddress) {
+    return res.status(400).json({ error: "Missing required fields." });
+  }
 
-  // ② Declare contractMethod before using it
-  const contractMethod = drugTrackingContract.methods.manufactureDrug(
-    id,
-    productId,
-    batchId
-  );
+  try {
+    const loadedAddress = web3.eth.accounts.wallet[0]?.address;
 
-  // …validation & estimateGas…
-  const promi = contractMethod.send({
-    from: manufacturerAddress,
-    gas: estimatedGas + 10_000,
-    gasPrice: web3.utils.toWei("30", "gwei"), // bump to 30 gwei
-  });
+    if (
+      !loadedAddress ||
+      loadedAddress.toLowerCase() !== manufacturerAddress.toLowerCase()
+    ) {
+      return res.status(400).json({ error: "Signing address mismatch." });
+    }
 
-  promi
-    .once("transactionHash", (hash) => {
-      console.log("TX Hash:", hash);
-      res.json({ message: "Submitted", transactionHash: hash });
-    })
-    .once("error", (err) => {
-      console.error("Send error:", err);
-      if (!res.headersSent) {
-        res.status(500).json({ error: "Tx send failed", details: err.message });
-      }
+    const contractMethod = drugTrackingContract.methods.manufactureDrug(
+      id,
+      productId,
+      batchId
+    );
+
+    // 🔍 Estimate gas usage
+    const estimatedGas = await contractMethod.estimateGas({
+      from: manufacturerAddress,
     });
 
-  // don’t await promi; mining happens later
+    const gasPrice = await web3.eth.getGasPrice(); // dynamic gas price
+
+    console.log("→ Manufacture Drug");
+    console.log("Estimated Gas:", estimatedGas);
+    console.log("Gas Price (wei):", gasPrice);
+
+    // 🚀 Send transaction
+    const promi = contractMethod.send({
+      from: manufacturerAddress,
+      gas: estimatedGas + 10_000, // buffer
+      gasPrice,
+    });
+
+    promi
+      .once("transactionHash", (hash) => {
+        console.log("TX Hash:", hash);
+        res.json({ message: "Submitted", transactionHash: hash });
+      })
+      .once("error", (err) => {
+        console.error("Send error:", err);
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: "Transaction failed to send.",
+            details: err.message,
+          });
+        }
+      });
+
+    // No await – mining happens later
+  } catch (err) {
+    console.error("Manufacture error:", err.message || err);
+    res.status(500).json({
+      error: "Failed to manufacture drug.",
+      details: err.message || "Unknown error",
+    });
+  }
 });
+
+// don’t await promi; mining happens later
 app.post("/api/drug/transfer", async (req, res) => {
   const { id, newOwnerAddress, newStatus, currentOwnerAddress } = req.body;
 
