@@ -279,7 +279,7 @@ app.post("/api/drug/manufacture", async (req, res) => {
       gasPrice: web3.utils.toWei("5", "gwei"),
     });
     console.log(`Estimated Gas: ${estimatedGas}`);
-    console.log(`Gas Price (wei): ${web3.utils.toWei("5", "gwei")}`);
+    console.log(`Gas Price (wei): ${web3.utils.toWei("15", "gwei")}`);
 
     res.json({ message: "Manufactured", transactionHash: tx.transactionHash });
   } catch (err) {
