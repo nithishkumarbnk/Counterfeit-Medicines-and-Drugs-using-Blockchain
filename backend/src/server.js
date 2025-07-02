@@ -309,7 +309,7 @@ app.post("/api/drug/transfer", async (req, res) => {
 
     const tx = await drugTrackingContract.methods
       .transferDrug(id, newOwnerAddress, newStatus)
-      .send({ from: currentOwnerAddress, gas: 3000000 });
+      .send({ from: currentOwnerAddress, gas: 5000000 });
 
     res.json({ message: "Transferred", transactionHash: tx.transactionHash });
   } catch (err) {
