@@ -361,14 +361,52 @@ app.post("/api/drug/transfer", async (req, res) => {
       return res.status(400).json({ error: "Signing address mismatch." });
     }
 
-    const tx = await drugTrackingContract.methods
-      .transferDrug(id, newOwnerAddress, newStatus)
-      .send({ from: currentOwnerAddress, gas: 5000000 });
+    const contractMethod = drugTrackingContract.methods.transferDrug(
+      id,
+      newOwnerAddress,
+      newStatus
+    );
 
-    res.json({ message: "Transferred", transactionHash: tx.transactionHash });
+    // Estimate gas
+    const estimatedGas = await contractMethod.estimateGas({
+      from: currentOwnerAddress,
+    });
+
+    const gasPrice = await web3.eth.getGasPrice();
+
+    console.log("→ Transfer Drug");
+    console.log("Estimated Gas:", estimatedGas);
+    console.log("Gas Price (wei):", gasPrice);
+
+    // Send transaction
+    const promi = contractMethod.send({
+      from: currentOwnerAddress,
+      gas: estimatedGas + 10_000, // buffer
+      gasPrice,
+    });
+
+    promi
+      .once("transactionHash", (hash) => {
+        console.log("Transfer TX Hash:", hash);
+        res.json({ message: "Transferred", transactionHash: hash });
+      })
+      .once("error", (err) => {
+        console.error("Transfer error:", err);
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: "Transaction failed to send.",
+            details: err.message,
+          });
+        }
+      });
+
+    // No await – let it mine in background
   } catch (err) {
-    console.error("Transfer error:", err);
-    res.status(500).json({ error: "Failed to transfer drug." });
+    console.error("Transfer route failure:", err.message || err);
+    res.status(500).json({
+      error: "Failed to transfer drug.",
+      details: err.message || "Unknown error",
+    });
   }
 });
 
