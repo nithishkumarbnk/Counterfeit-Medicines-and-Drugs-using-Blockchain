@@ -21,10 +21,11 @@ function DistributorPharmacyDashboard({
   const [ownedDrugs, setOwnedDrugs] = useState([]);
   const [loadingDrugs, setLoadingDrugs] = useState(true);
   const [errorDrugs, setErrorDrugs] = useState("");
+  const loggedInUserAddress = localStorage.getItem("loggedInUserAddress"); // NEW: Get address from local storage
 
   useEffect(() => {
     const fetchOwnedDrugs = async () => {
-      if (!loggedInUsername) {
+      if (!loggedInUserAddress) {
         setLoadingDrugs(false);
         return;
       }

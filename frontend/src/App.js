@@ -108,11 +108,12 @@ function App() {
     }
   }, [authToken, loggedInUsername]);
 
-  const handleLoginSuccess = (token, username, roles) => {
+  const handleLoginSuccess = (token, username, roles, userAddress) => {
     setAuthToken(token);
     setLoggedInUsername(username);
     localStorage.setItem("authToken", token);
     localStorage.setItem("loggedInUsername", username);
+    localStorage.setItem("loggedInUserAddress", userAddress); // NEW: Store userAddress
     setUserRoles(roles); // Directly set roles from login response
   };
 
