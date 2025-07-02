@@ -279,51 +279,27 @@ app.get(
 );
 
 app.post("/api/drug/manufacture", async (req, res) => {
-  const { id, productId, batchId, manufacturerAddress } = req.body;
+  // …validation & estimateGas…
+  const promi = contractMethod.send({
+    from: manufacturerAddress,
+    gas: estimatedGas + 10_000,
+    gasPrice: web3.utils.toWei("30", "gwei"), // bump to 30 gwei
+  });
 
-  if (!id || !productId || !batchId || !manufacturerAddress) {
-    return res.status(400).json({ error: "Missing required fields." });
-  }
-
-  try {
-    const loadedAddress = web3.eth.accounts.wallet[0]?.address;
-    if (
-      !loadedAddress ||
-      loadedAddress.toLowerCase() !== manufacturerAddress.toLowerCase()
-    ) {
-      return res.status(400).json({ error: "Signing address mismatch." });
-    }
-
-    const contractMethod = drugTrackingContract.methods.manufactureDrug(
-      id,
-      productId,
-      batchId
-    );
-
-    // 🔍 Estimate gas
-    const estimatedGas = await contractMethod.estimateGas({
-      from: manufacturerAddress,
+  promi
+    .once("transactionHash", (hash) => {
+      console.log("TX Hash:", hash);
+      res.json({ message: "Submitted", transactionHash: hash });
+    })
+    .once("error", (err) => {
+      console.error("Send error:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Tx send failed", details: err.message });
+      }
     });
 
-    // ✅ Execute transaction
-    const tx = await contractMethod.send({
-      from: manufacturerAddress,
-      gas: estimatedGas + 10000, // Add slight buffer
-      gasPrice: web3.utils.toWei("15", "gwei"),
-    });
-    console.log(`Estimated Gas: ${estimatedGas}`);
-    console.log(`Gas Price (wei): ${web3.utils.toWei("15", "gwei")}`);
-
-    res.json({ message: "Manufactured", transactionHash: tx.transactionHash });
-  } catch (err) {
-    console.error("Manufacture error:", err.message || err);
-    res.status(500).json({
-      error: "Failed to manufacture drug.",
-      details: err.message || "Unknown error",
-    });
-  }
+  // don’t await promi; mining happens later
 });
-
 app.post("/api/drug/transfer", async (req, res) => {
   const { id, newOwnerAddress, newStatus, currentOwnerAddress } = req.body;
 
