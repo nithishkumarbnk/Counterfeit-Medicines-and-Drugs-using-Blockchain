@@ -279,6 +279,18 @@ app.get(
 );
 
 app.post("/api/drug/manufacture", async (req, res) => {
+  const { id, productId, batchId, manufacturerAddress } = req.body;
+
+  // ① Ensure you have the global contract instance
+  //    e.g. const drugTrackingContract = new web3.eth.Contract(ABI, ADDRESS);
+
+  // ② Declare contractMethod before using it
+  const contractMethod = drugTrackingContract.methods.manufactureDrug(
+    id,
+    productId,
+    batchId
+  );
+
   // …validation & estimateGas…
   const promi = contractMethod.send({
     from: manufacturerAddress,
