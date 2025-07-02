@@ -10,7 +10,7 @@ import {
   ListItemText,
   Divider,
 } from "@mui/material";
-import DrugManufacturer from "./DrugManufacturer"; // Import the existing component
+import ManufactureDrug from "./ManufactureDrug"; // Import the existing component
 import axios from "axios"; // For fetching manufacturer-specific drugs
 
 function ManufacturerDashboard({ API_BASE_URL, authToken, loggedInUsername }) {
@@ -53,7 +53,7 @@ function ManufacturerDashboard({ API_BASE_URL, authToken, loggedInUsername }) {
       </Typography>
 
       {/* Section for Manufacturing New Drugs */}
-      <DrugManufacturer API_BASE_URL={API_BASE_URL} authToken={authToken} />
+      <ManufactureDrug API_BASE_URL={API_BASE_URL} authToken={authToken} />
 
       <Divider sx={{ my: 4 }} />
 
