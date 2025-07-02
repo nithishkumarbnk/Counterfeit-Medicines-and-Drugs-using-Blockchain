@@ -1,6 +1,6 @@
 // frontend/src/App.js
 import React, { useState, useEffect } from "react";
-import axios from "axios"; // <--- ADD THIS LINE
+import axios from "axios";
 import {
   AppBar,
   Toolbar,
@@ -13,14 +13,20 @@ import {
 } from "@mui/material";
 import Login from "./components/Login";
 import VerifyDrug from "./components/VerifyDrug";
-import ManufactureDrug from "./components/ManufactureDrug";
-import DrugTransfer from "./components/DrugTransfer";
-import LogViolation from "./components/LogViolation";
-import RoleManager from "./components/RoleManager";
-import DrugList from "./components/DrugList"; // For displaying all drugs
+// Import individual forms if still used directly, otherwise remove
+// import DrugManufacturer from "./components/DrugManufacturer";
+// import DrugTransfer from "./components/DrugTransfer";
+// import LogViolation from "./components/LogViolation";
+// import RoleManager from "./components/RoleManager";
+import DrugList from "./components/DrugList";
+
+// Import the new Dashboard components
+import ManufacturerDashboard from "./components/ManufacturerDashboard";
+import DistributorPharmacyDashboard from "./components/DistributorPharmacyDashboard";
+import RegulatorDashboard from "./components/RegulatorDashboard"; // NEW IMPORT
+import AdminDashboard from "./components/AdminDashboard"; // NEW IMPORT
 
 // This variable will be injected by Vercel from your environment variables.
-// Example: https://counterfeit-medicines-and-drugs-using.onrender.com
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
 
 function App() {
@@ -31,47 +37,61 @@ function App() {
   const [loggedInUsername, setLoggedInUsername] = useState(
     localStorage.getItem("loggedInUsername") || ""
   );
-  const [currentTab, setCurrentTab] = useState(0); // For managing tabs in the UI
+  const [currentTab, setCurrentTab] = useState(0);
 
-  // Function to fetch user roles after successful login
-  // In a real app, this would call a backend endpoint to get roles for the logged-in user
   const fetchUserRoles = async (username) => {
     // This function is now simplified as roles come directly from login
     // For the purpose of this App.js, we'll simulate roles based on username
     // This part is primarily for initial setup/refresh and could be replaced
     // by a backend call to /api/user/roles if you implement that.
-    if (username === "admin") {
-      setUserRoles([
-        "ADMIN_ROLE",
-        "MANUFACTURER_ROLE",
-        "REGULATOR_ROLE",
-        "DISTRIBUTOR_ROLE",
-        "PHARMACY_ROLE",
-      ]);
-    } else if (username === "manufacturer") {
-      setUserRoles(["MANUFACTURER_ROLE"]);
-    } else if (username === "distributor") {
-      setUserRoles(["DISTRIBUTOR_ROLE"]);
-    } else if (username === "pharmacy") {
-      setUserRoles(["PHARMACY_ROLE"]);
-    } else if (username === "regulator") {
-      setUserRoles(["REGULATOR_ROLE"]);
+    const TEST_USERS = [
+      // Re-define TEST_USERS here or ensure it's imported/accessible
+      {
+        username: "admin",
+        password: "adminPassword",
+        roles: [
+          "ADMIN_ROLE",
+          "MANUFACTURER_ROLE",
+          "REGULATOR_ROLE",
+          "DISTRIBUTOR_ROLE",
+          "PHARMACY_ROLE",
+        ],
+      },
+      {
+        username: "manufacturer",
+        password: "manuPassword",
+        roles: ["MANUFACTURER_ROLE"],
+      },
+      {
+        username: "distributor",
+        password: "distPassword",
+        roles: ["DISTRIBUTOR_ROLE"],
+      },
+      {
+        username: "pharmacy",
+        password: "pharmPassword",
+        roles: ["PHARMACY_ROLE"],
+      },
+      {
+        username: "regulator",
+        password: "regPassword",
+        roles: ["REGULATOR_ROLE"],
+      },
+      { username: "public", password: "publicPassword", roles: ["PUBLIC"] },
+    ];
+    const user = TEST_USERS.find((u) => u.username === username);
+    if (user) {
+      setUserRoles(user.roles);
     } else {
-      setUserRoles(["PUBLIC"]); // Default for non-logged in or unknown
+      setUserRoles(["PUBLIC"]);
     }
   };
 
   useEffect(() => {
     if (authToken && loggedInUsername) {
-      // If token exists on refresh, re-fetch roles (or assume based on username)
-      // For this demo, we'll re-fetch from the backend's /api/user/roles endpoint
-      // This is the part that uses axios
       const getRolesOnRefresh = async () => {
         try {
-          // You need to implement this /api/user/roles endpoint in your backend
-          // For now, we'll use the simulated roles from fetchUserRoles
-          // If you don't implement /api/user/roles, you can remove this axios call
-          // and just call fetchUserRoles(loggedInUsername) directly here.
+          // If you implement /api/user/roles in backend, use this:
           // const response = await axios.get(`${API_BASE_URL}/api/user/roles`, {
           //   headers: { Authorization: `Bearer ${authToken}` }
           // });
@@ -79,21 +99,21 @@ function App() {
           fetchUserRoles(loggedInUsername); // Using simulated roles for now
         } catch (err) {
           console.error("Error fetching roles on refresh:", err);
-          setUserRoles(["PUBLIC"]); // Fallback
+          setUserRoles(["PUBLIC"]);
         }
       };
       getRolesOnRefresh();
     } else {
-      setUserRoles(["PUBLIC"]); // Ensure PUBLIC role if not logged in
+      setUserRoles(["PUBLIC"]);
     }
-  }, [authToken, loggedInUsername]); // Re-run if token/username changes
+  }, [authToken, loggedInUsername]);
 
   const handleLoginSuccess = (token, username, roles) => {
     setAuthToken(token);
     setLoggedInUsername(username);
-    localStorage.setItem("authToken", token); // Save token to local storage
+    localStorage.setItem("authToken", token);
     localStorage.setItem("loggedInUsername", username);
-    fetchUserRoles(roles); // Pass roles directly
+    setUserRoles(roles); // Directly set roles from login response
   };
 
   const handleLogout = () => {
@@ -102,14 +122,13 @@ function App() {
     localStorage.removeItem("authToken");
     localStorage.removeItem("loggedInUsername");
     setUserRoles(["PUBLIC"]);
-    setCurrentTab(0); // Reset tab on logout
+    setCurrentTab(0);
   };
 
   const handleTabChange = (event, newValue) => {
     setCurrentTab(newValue);
   };
 
-  // Helper function to render tab content
   const renderTabContent = () => {
     if (!authToken) {
       return (
@@ -121,28 +140,39 @@ function App() {
     }
 
     switch (currentTab) {
-      case 0: // Home/Verify
+      case 0: // Verify Drug (Publicly accessible)
         return <VerifyDrug API_BASE_URL={API_BASE_URL} authToken={authToken} />;
-      case 1: // Manufacturer
+      case 1: // Manufacturer Dashboard
         return userRoles.includes("MANUFACTURER_ROLE") ? (
-          <ManufactureDrug API_BASE_URL={API_BASE_URL} authToken={authToken} />
+          <ManufacturerDashboard
+            API_BASE_URL={API_BASE_URL}
+            authToken={authToken}
+            loggedInUsername={loggedInUsername}
+          />
         ) : (
           <Typography variant="h6" color="error" sx={{ mt: 4 }}>
             Access Denied: You do not have MANUFACTURER_ROLE.
           </Typography>
         );
-      case 2: // Transfer
+      case 2: // Distributor/Pharmacy Dashboard
         return userRoles.includes("DISTRIBUTOR_ROLE") ||
           userRoles.includes("PHARMACY_ROLE") ? (
-          <DrugTransfer API_BASE_URL={API_BASE_URL} authToken={authToken} />
+          <DistributorPharmacyDashboard
+            API_BASE_URL={API_BASE_URL}
+            authToken={authToken}
+            loggedInUsername={loggedInUsername}
+          />
         ) : (
           <Typography variant="h6" color="error" sx={{ mt: 4 }}>
             Access Denied: You do not have DISTRIBUTOR_ROLE or PHARMACY_ROLE.
           </Typography>
         );
-      case 3: // Log Violation
+      case 3: // Regulator Dashboard
         return userRoles.includes("REGULATOR_ROLE") ? (
-          <LogViolation API_BASE_URL={API_BASE_URL} authToken={authToken} />
+          <RegulatorDashboard
+            API_BASE_URL={API_BASE_URL}
+            authToken={authToken}
+          />
         ) : (
           <Typography variant="h6" color="error" sx={{ mt: 4 }}>
             Access Denied: You do not have REGULATOR_ROLE.
@@ -150,9 +180,9 @@ function App() {
         );
       case 4: // All Drugs List
         return <DrugList API_BASE_URL={API_BASE_URL} authToken={authToken} />;
-      case 5: // Admin Roles
+      case 5: // Admin Dashboard
         return userRoles.includes("ADMIN_ROLE") ? (
-          <RoleManager API_BASE_URL={API_BASE_URL} authToken={authToken} />
+          <AdminDashboard API_BASE_URL={API_BASE_URL} authToken={authToken} />
         ) : (
           <Typography variant="h6" color="error" sx={{ mt: 4 }}>
             Access Denied: You do not have ADMIN_ROLE.
@@ -184,7 +214,7 @@ function App() {
           )}
         </Toolbar>
       </AppBar>
-      {authToken && ( // Show tabs only when logged in
+      {authToken && (
         <AppBar position="static" color="default">
           <Tabs
             value={currentTab}
