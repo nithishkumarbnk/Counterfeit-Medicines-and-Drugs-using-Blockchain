@@ -31,27 +31,27 @@ const TEST_USERS = [
   },
   {
     username: "manufacturer",
-    password: "manuPassword",
+    password: "manufacturer",
     roles: ["MANUFACTURER_ROLE"],
   },
   {
     username: "distributor",
-    password: "distPassword",
+    password: "distributor",
     roles: ["DISTRIBUTOR_ROLE"],
   },
   {
     username: "distributor",
-    password: "distPassword",
+    password: "distributor",
     roles: ["DISTRIBUTOR_ROLE"],
     address: "0x5C69D627209180f88bA7b8Ce243C3384A44F0D0E",
   }, // Add address
   {
     username: "pharmacy",
-    password: "pharmPassword",
+    password: "pharmacy",
     roles: ["PHARMACY_ROLE"],
     address: "0x21B00Cc4d6b21164Cd5e8B98C1e3834d44B42fD6",
   }, // Add another address
-  { username: "public", password: "publicPassword", roles: ["PUBLIC"] }, // For testing public view
+  { username: "public", password: "public", roles: ["PUBLIC"] }, // For testing public view
 ];
 const SECRET_TOKEN = process.env.SECRET_TOKEN; // Used for simple auth
 // --- END NEW ---
