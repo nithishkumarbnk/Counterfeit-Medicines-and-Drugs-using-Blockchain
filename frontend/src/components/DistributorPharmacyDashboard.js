@@ -28,13 +28,15 @@ function DistributorPharmacyDashboard({
         setLoadingDrugs(false);
         return;
       }
+
       setLoadingDrugs(true);
       setErrorDrugs("");
       try {
         // You'll need to implement this endpoint in your backend
         const response = await axios.get(
-          `${API_BASE_URL}/api/drugs/byCurrentOwner/${loggedInUsername}`,
+          `${API_BASE_URL}/api/drugs/byCurrentOwner/${loggedInUserAddress}`,
           {
+            // Use loggedInUserAddress
             headers: { Authorization: `Bearer ${authToken}` },
           }
         );
@@ -48,7 +50,7 @@ function DistributorPharmacyDashboard({
     };
 
     fetchOwnedDrugs();
-  }, [API_BASE_URL, authToken, loggedInUsername]); // Re-fetch when these change
+  }, [API_BASE_URL, authToken, loggedInUserAddress]); // Re-fetch when these change
 
   return (
     <Box sx={{ mt: 4 }}>

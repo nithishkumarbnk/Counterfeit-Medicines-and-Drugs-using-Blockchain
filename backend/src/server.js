@@ -39,8 +39,18 @@ const TEST_USERS = [
     password: "distPassword",
     roles: ["DISTRIBUTOR_ROLE"],
   },
-  { username: "pharmacy", password: "pharmPassword", roles: ["PHARMACY_ROLE"] },
-  { username: "regulator", password: "regPassword", roles: ["REGULATOR_ROLE"] },
+  {
+    username: "distributor",
+    password: "distPassword",
+    roles: ["DISTRIBUTOR_ROLE"],
+    address: "0x5C69D627209180f88bA7b8Ce243C3384A44F0D0E",
+  }, // Add address
+  {
+    username: "pharmacy",
+    password: "pharmPassword",
+    roles: ["PHARMACY_ROLE"],
+    address: "0x21B00Cc4d6b21164Cd5e8B98C1e3834d44B42fD6",
+  }, // Add another address
   { username: "public", password: "publicPassword", roles: ["PUBLIC"] }, // For testing public view
 ];
 const SECRET_TOKEN = process.env.SECRET_TOKEN; // Used for simple auth
@@ -186,6 +196,7 @@ app.post("/api/login", (req, res) => {
       message: "Login successful",
       token: SECRET_TOKEN,
       roles: user.roles,
+      userAddress: user.address,
     });
   } else {
     res.status(401).json({ error: "Invalid username or password." });
