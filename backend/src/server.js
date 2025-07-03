@@ -1,11 +1,9 @@
-// backend/src/server.js
-
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 require("dotenv").config();
 
-const Web3 = require("web3"); // Import Web3 directly for v1.x
+const Web3 = require("web3");
 
 const path = require("path");
 const fs = require("fs");
@@ -56,10 +54,8 @@ const TEST_USERS = [
   { username: "public", password: "public", roles: ["PUBLIC"] },
 ];
 
-const SECRET_TOKEN = process.env.SECRET_TOKEN; // Used for simple auth
-// --- END NEW ---
+const SECRET_TOKEN = process.env.SECRET_TOKEN;
 let mongoDb;
-
 let web3;
 let drugTrackingContract;
 let contractAddress;
@@ -69,12 +65,10 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // --- Web3 Setup ---
-// Correctly initialize Web3 with its providers for v1.x
 if (
   process.env.WEB3_PROVIDER_URL &&
   process.env.WEB3_PROVIDER_URL.startsWith("wss://")
 ) {
-  // Access WebsocketProvider as a property of Web3.providers
   web3 = new Web3(
     new Web3.providers.WebsocketProvider(process.env.WEB3_PROVIDER_URL)
   );
@@ -82,15 +76,13 @@ if (
   process.env.WEB3_PROVIDER_URL &&
   process.env.WEB3_PROVIDER_URL.startsWith("http")
 ) {
-  // Access HttpProvider as a property of Web3.providers
   web3 = new Web3(
     new Web3.providers.HttpProvider(process.env.WEB3_PROVIDER_URL)
   );
 } else {
-  web3 = new Web3("http://127.0.0.1:8545"); // fallback for local Ganache
+  web3 = new Web3("http://127.0.0.1:8545");
 }
 
-// --- Test Web3 connection ---
 web3.eth
   .getBlockNumber()
   .then((block) => console.log("Connected to Web3, latest block:", block))
@@ -101,52 +93,34 @@ web3.eth
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
-
-  if (token == null) {
+  const token = authHeader && authHeader.split(" ")[1];
+  if (token == null)
     return res.status(401).json({ error: "Authentication token required." });
-  }
-
-  if (token !== SECRET_TOKEN) {
-    // Simple token validation
+  if (token !== SECRET_TOKEN)
     return res.status(403).json({ error: "Invalid authentication token." });
-  }
-
-  next(); // Proceed to the next middleware/route handler
+  next();
 };
 
 // --- Add private key to wallet ---
-const manufacturerPrivateKey = process.env.MANUFACTURER_PRIVATE_KEY;
-if (manufacturerPrivateKey) {
+const loadedPrivateKey = process.env.MANUFACTURER_PRIVATE_KEY; // Using a generic name
+if (loadedPrivateKey) {
   try {
-    // Standardize to adding account object
-    const account = web3.eth.accounts.privateKeyToAccount(
-      manufacturerPrivateKey
-    );
+    const account = web3.eth.accounts.privateKeyToAccount(loadedPrivateKey);
     web3.eth.accounts.wallet.add(account);
-    console.log(
-      "Manufacturer account added:",
-      web3.eth.accounts.wallet[0].address
-    );
+    console.log("Signing account loaded:", web3.eth.accounts.wallet[0].address);
   } catch (e) {
-    console.error("Error adding manufacturer private key:", e.message);
+    console.error("Error adding private key:", e.message);
   }
 } else {
-  console.warn("MANUFACTURER_PRIVATE_KEY not set. Transactions may fail.");
+  console.warn("MANUFACTURER_PRIVATE_KEY not set. Transactions will fail.");
 }
 
 // --- Connect to MongoDB ---
 async function connectToMongoDb() {
   try {
     const client = new MongoClient(MONGODB_URI, {
-      // Add this option to force a specific TLS version if needed,
-      // or to bypass strict SSL checks for testing.
-      // This is a common workaround for SSL_alert_number_80 errors.
-      // Note: tlsAllowInvalidCertificates should be used with caution in production.
-      // A better long-term solution is to ensure your Node.js environment's OpenSSL
-      // is fully compatible with MongoDB Atlas's preferred TLS settings.
-      tlsAllowInvalidCertificates: true, // Temporarily allow invalid certs to bypass handshake issue
-      tls: true, // Ensure TLS is explicitly enabled
+      tlsAllowInvalidCertificates: true,
+      tls: true,
     });
     await client.connect();
     mongoDb = client.db("drug_tracking_db");
@@ -165,20 +139,14 @@ const loadContract = async () => {
       "../blockchain_artifacts/contracts/DrugTracking.json"
     );
     const contractArtifact = JSON.parse(fs.readFileSync(contractPath, "utf8"));
-
     const contractABI = contractArtifact.abi;
-    const networkId = await web3.eth.getChainId(); // Returns string in v1.x
+    const networkId = await web3.eth.getChainId();
     const networkIdString = networkId.toString();
-
-    console.log(`Detected Network ID: ${networkIdString}`);
-
     if (!contractArtifact.networks[networkIdString]) {
       throw new Error(`Contract not deployed on network ${networkIdString}`);
     }
-
     contractAddress = contractArtifact.networks[networkIdString].address;
     drugTrackingContract = new web3.eth.Contract(contractABI, contractAddress);
-
     console.log(`Connected to contract at: ${contractAddress}`);
   } catch (error) {
     console.error("Contract load failed:", error.message);
@@ -189,11 +157,9 @@ const loadContract = async () => {
 // --- API Routes ---
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
-
   const user = TEST_USERS.find(
     (u) => u.username === username && u.password === password
   );
-
   if (user) {
     res.json({
       message: "Login successful",
@@ -205,88 +171,21 @@ app.post("/api/login", (req, res) => {
     res.status(401).json({ error: "Invalid username or password." });
   }
 });
-app.get("/api/user/roles", authenticateToken, (req, res) => {
-  // In a real app, you'd get the username from the authenticated token
-  // For this demo, we'll assume the token implies admin role for simplicity
-  // Or, you could pass the username in the login response and retrieve roles based on that.
-  // For now, let's just return the roles of the 'admin' user if authenticated.
-  const adminUser = TEST_USERS.find((u) => u.username === "admin"); // Assuming admin is the primary user for this demo
-  if (adminUser) {
-    res.json({ roles: adminUser.roles });
-  } else {
-    res.status(500).json({ error: "Admin user not found in test data." });
-  }
-});
 
-app.get("/api/hasRole/:roleName/:address", async (req, res) => {
-  const { roleName, address } = req.params;
-
-  if (!web3.utils.isAddress(address)) {
-    return res.status(400).json({ error: "Invalid Ethereum address." });
-  }
-
-  let roleHash;
-  switch (roleName.toUpperCase()) {
-    case "DEFAULT_ADMIN_ROLE":
-      // Special case for DEFAULT_ADMIN_ROLE: its bytes32 value is 0x00...00
-      roleHash =
-        "0x0000000000000000000000000000000000000000000000000000000000000000";
-      break;
-    case "MANUFACTURER_ROLE":
-      roleHash = web3.utils.keccak256("MANUFACTURER_ROLE");
-      break;
-    case "DISTRIBUTOR_ROLE":
-      roleHash = web3.utils.keccak256("DISTRIBUTOR_ROLE");
-      break;
-    case "PHARMACY_ROLE":
-      roleHash = web3.utils.keccak256("PHARMACY_ROLE");
-      break;
-    case "REGULATOR_ROLE":
-      roleHash = web3.utils.keccak256("REGULATOR_ROLE");
-      break;
-    default:
-      return res.status(400).json({ error: "Invalid role name." });
-  }
-  app;
-  try {
-    const result = await drugTrackingContract.methods
-      .hasRole(roleHash, address)
-      .call();
-    res.json({ address, role: roleName, hasRole: result });
-  } catch (e) {
-    console.error("hasRole error:", e);
-    res.status(500).json({ error: "Blockchain role check failed." });
-  }
-});
-// THIS IS THE CORRECT BLOCK - ADD IT
 app.get(
   "/api/drugs/byManufacturer/:username",
   authenticateToken,
   async (req, res) => {
     try {
       const { username } = req.params;
-
-      // Find the user in your hardcoded TEST_USERS array to get their address
       const user = TEST_USERS.find((u) => u.username === username);
-
-      if (!user || !user.address) {
-        // If the user is not found or doesn't have an address, return an empty array.
-        // This prevents errors for users like 'admin' who might not have a single address.
-        return res.json([]);
-      }
-
-      const manufacturerAddress = user.address;
-
-      // Now, find all drugs where the 'manufacturer' field matches the user's address.
-      // The indexer saves the address in the 'manufacturer' field.
-      // We use a regular expression for a case-insensitive search, which is robust.
+      if (!user || !user.address) return res.json([]);
       const drugs = await mongoDb
         .collection("drugs")
         .find({
-          manufacturer: { $regex: new RegExp(`^${manufacturerAddress}$`, "i") },
+          manufacturer: { $regex: new RegExp(`^${user.address}$`, "i") },
         })
         .toArray();
-
       res.json(drugs);
     } catch (error) {
       console.error("Error fetching drugs by manufacturer:", error);
@@ -297,80 +196,62 @@ app.get(
   }
 );
 
-app.post("/api/drug/manufacture", async (req, res) => {
+app.post("/api/drug/manufacture", authenticateToken, async (req, res) => {
   const { id, productId, batchId, manufacturerAddress } = req.body;
-
   if (!id || !productId || !batchId || !manufacturerAddress) {
     return res.status(400).json({ error: "Missing required fields." });
   }
-
   try {
     const loadedAddress = web3.eth.accounts.wallet[0]?.address;
-
     if (
       !loadedAddress ||
       loadedAddress.toLowerCase() !== manufacturerAddress.toLowerCase()
     ) {
       return res.status(400).json({ error: "Signing address mismatch." });
     }
-
     const contractMethod = drugTrackingContract.methods.manufactureDrug(
       id,
       productId,
       batchId
     );
-
-    // 🔍 Estimate gas usage
     const estimatedGas = await contractMethod.estimateGas({
       from: manufacturerAddress,
     });
 
-    const gasPrice = await web3.eth.getGasPrice(); // dynamic gas price
+    // --- GAS PRICE FIX ---
+    const baseGasPrice = await web3.eth.getGasPrice();
+    const gasPrice = (BigInt(baseGasPrice) * 120n) / 100n;
+    console.log(
+      `→ Manufacture Drug | Base Gas: ${baseGasPrice}, Offered Gas: ${gasPrice}`
+    );
 
-    console.log("→ Manufacture Drug");
-    console.log("Estimated Gas:", estimatedGas);
-    console.log("Gas Price (wei):", gasPrice);
-
-    // 🚀 Send transaction
-    const promi = contractMethod.send({
+    const receipt = await contractMethod.send({
       from: manufacturerAddress,
-      gas: estimatedGas + 10_000, // buffer
+      gas: estimatedGas + 100000,
       gasPrice,
     });
-
-    promi
-      .once("transactionHash", (hash) => {
-        console.log("TX Hash:", hash);
-        res.json({ message: "Submitted", transactionHash: hash });
-      })
-      .once("error", (err) => {
-        console.error("Send error:", err);
-        if (!res.headersSent) {
-          res.status(500).json({
-            error: "Transaction failed to send.",
-            details: err.message,
-          });
-        }
+    res
+      .status(200)
+      .json({
+        message: "Drug manufactured successfully.",
+        transactionHash: receipt.transactionHash,
       });
-
-    // No await – mining happens later
   } catch (err) {
     console.error("Manufacture error:", err.message || err);
-    res.status(500).json({
-      error: "Failed to manufacture drug.",
-      details: err.message || "Unknown error",
-    });
+    res
+      .status(500)
+      .json({
+        error: "Failed to manufacture drug.",
+        details: err.message || "Unknown error",
+      });
   }
 });
 
-// don’t await promi; mining happens later
-app.post("/api/drug/transfer", async (req, res) => {
+app.post("/api/drug/transfer", authenticateToken, async (req, res) => {
   const { id, newOwnerAddress, newStatus, currentOwnerAddress } = req.body;
-
   if (!id || !newOwnerAddress || !newStatus || !currentOwnerAddress) {
     return res.status(400).json({ error: "Missing required fields." });
   }
-
   try {
     const loadedAddress = web3.eth.accounts.wallet[0]?.address;
     if (
@@ -379,90 +260,45 @@ app.post("/api/drug/transfer", async (req, res) => {
     ) {
       return res.status(400).json({ error: "Signing address mismatch." });
     }
-
     const contractMethod = drugTrackingContract.methods.transferDrug(
       id,
       newOwnerAddress,
       newStatus
     );
-
-    // Estimate gas
     const estimatedGas = await contractMethod.estimateGas({
       from: currentOwnerAddress,
     });
 
-    const gasPrice = await web3.eth.getGasPrice();
+    // --- GAS PRICE FIX ---
+    const baseGasPrice = await web3.eth.getGasPrice();
+    const gasPrice = (BigInt(baseGasPrice) * 120n) / 100n;
+    console.log(
+      `→ Transfer Drug | Base Gas: ${baseGasPrice}, Offered Gas: ${gasPrice}`
+    );
 
-    console.log("→ Transfer Drug");
-    console.log("Estimated Gas:", estimatedGas);
-    console.log("Gas Price (wei):", gasPrice);
-
-    // Send transaction
-    const promi = contractMethod.send({
+    const receipt = await contractMethod.send({
       from: currentOwnerAddress,
-      gas: estimatedGas + 10_000, // buffer
+      gas: estimatedGas + 100000,
       gasPrice,
     });
-
-    promi
-      .once("transactionHash", (hash) => {
-        console.log("Transfer TX Hash:", hash);
-        res.json({ message: "Transferred", transactionHash: hash });
-      })
-      .once("error", (err) => {
-        console.error("Transfer error:", err);
-        if (!res.headersSent) {
-          res.status(500).json({
-            error: "Transaction failed to send.",
-            details: err.message,
-          });
-        }
+    res
+      .status(200)
+      .json({
+        message: "Drug transferred successfully.",
+        transactionHash: receipt.transactionHash,
       });
-
-    // No await – let it mine in background
   } catch (err) {
     console.error("Transfer route failure:", err.message || err);
-    res.status(500).json({
-      error: "Failed to transfer drug.",
-      details: err.message || "Unknown error",
-    });
+    res
+      .status(500)
+      .json({
+        error: "Failed to transfer drug.",
+        details: err.message || "Unknown error",
+      });
   }
 });
 
-app.get("/api/drug/verify/:drugId", async (req, res) => {
-  const drugId = req.params.drugId;
-
-  try {
-    const drug = await mongoDb.collection("drugs").findOne({ _id: drugId });
-    if (!drug) return res.status(404).json({ message: "Drug not found." });
-
-    const history = await mongoDb
-      .collection("drugHistoryEvents")
-      .find({ drugId })
-      .sort({ blockNumber: 1, logIndex: 1 })
-      .toArray();
-
-    res.json({
-      productId: drug.productId,
-      batchId: drug.batchId,
-      manufacturer: drug.manufacturerAddress,
-      currentOwner: drug.currentOwnerAddress,
-      status: drug.status,
-      history: history.map((e) => ({
-        eventType: e.eventType,
-        fromAddress: e.fromAddress,
-        toAddress: e.toAddress,
-        details: e.details,
-        timestamp: e.eventTimestamp,
-      })),
-    });
-  } catch (err) {
-    console.error("Verify error:", err);
-    res.status(500).json({ error: "Verify failed." });
-  }
-});
-
-app.get("/api/getAllDrugs", async (req, res) => {
+app.get("/api/getAllDrugs", authenticateToken, async (req, res) => {
   try {
     const drugs = await mongoDb.collection("drugs").find({}).toArray();
     res.json(drugs);
@@ -471,14 +307,12 @@ app.get("/api/getAllDrugs", async (req, res) => {
     res.status(500).json({ error: "Fetch failed." });
   }
 });
+
 app.get("/api/violations/all", authenticateToken, async (req, res) => {
   try {
-    // Find all events that are of type 'ColdChainViolation'
     const violations = await mongoDb
       .collection("drugHistoryEvents")
-      .find({
-        eventType: "ColdChainViolation",
-      })
+      .find({ eventType: "ColdChainViolation" })
       .toArray();
     res.json(violations);
   } catch (error) {
@@ -486,6 +320,7 @@ app.get("/api/violations/all", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Error fetching violations." });
   }
 });
+
 app.get(
   "/api/drugs/byCurrentOwner/:address",
   authenticateToken,
@@ -497,15 +332,10 @@ app.get(
           .status(400)
           .json({ error: "Invalid Ethereum address provided." });
       }
-
-      // Find all drugs where the 'currentOwner' field matches the address
       const drugs = await mongoDb
         .collection("drugs")
-        .find({
-          currentOwner: { $regex: new RegExp(`^${address}$`, "i") }, // Case-insensitive search
-        })
+        .find({ currentOwner: { $regex: new RegExp(`^${address}$`, "i") } })
         .toArray();
-
       res.json(drugs);
     } catch (error) {
       console.error("Error fetching drugs by current owner:", error);
@@ -515,277 +345,98 @@ app.get(
     }
   }
 );
-app.post("/api/sensor-data", async (req, res) => {
-  const { drugId, timestamp, temperature, humidity, senderAddress } = req.body;
-  console.log(
-    `Sensor for ${drugId} - Temp: ${temperature}°C, Humidity: ${humidity}%`
-  );
-
-  if (temperature < 2 || temperature > 8) {
-    const violation = `Temperature out of range (${temperature}°C). Expected 2–8°C.`;
-    try {
-      const loadedAddress = web3.eth.accounts.wallet[0]?.address;
-      const actualSender = senderAddress || loadedAddress;
-
-      if (
-        !actualSender ||
-        actualSender.toLowerCase() !== loadedAddress.toLowerCase()
-      ) {
-        return res.status(400).json({ error: "Sensor sender mismatch." });
-      }
-
-      const tx = await drugTrackingContract.methods
-        .logColdChainViolation(drugId, violation)
-        .send({ from: actualSender, gas: 3000000 });
-
-      console.log("Violation logged:", tx.transactionHash);
-    } catch (err) {
-      console.error("Violation log failed:", err.message);
-    }
-  }
-
-  res.json({ message: "Sensor data received." });
-});
-app.post("/api/admin/grantRole", async (req, res) => {
-  const { roleName, accountAddress } = req.body;
-
-  if (!roleName || !accountAddress) {
-    return res
-      .status(400)
-      .json({ error: "Missing roleName or accountAddress." });
-  }
-  if (!web3.utils.isAddress(accountAddress)) {
-    return res.status(400).json({ error: "Invalid accountAddress." });
-  }
-
-  let roleHash;
-  switch (roleName.toUpperCase()) {
-    case "MANUFACTURER_ROLE":
-      roleHash = web3.utils.keccak256("MANUFACTURER_ROLE");
-      break;
-    case "DISTRIBUTOR_ROLE":
-      roleHash = web3.utils.keccak256("DISTRIBUTOR_ROLE");
-      break;
-    case "PHARMACY_ROLE":
-      roleHash = web3.utils.keccak256("PHARMACY_ROLE");
-      break;
-    case "REGULATOR_ROLE":
-      roleHash = web3.utils.keccak256("REGULATOR_ROLE");
-      break;
-    default:
-      return res.status(400).json({ error: "Invalid role name for granting." });
-  }
-
-  try {
-    const loadedAddress = web3.eth.accounts.wallet[0]?.address;
-    if (!loadedAddress) {
-      return res
-        .status(500)
-        .json({ error: "Admin signing account not loaded." });
-    }
-
-    // --- CRITICAL FIX HERE ---
-    // Use the correct hash for DEFAULT_ADMIN_ROLE when checking admin status
-    const DEFAULT_ADMIN_ROLE_HASH =
-      "0x0000000000000000000000000000000000000000000000000000000000000000";
-    const isAdmin = await drugTrackingContract.methods
-      .hasRole(DEFAULT_ADMIN_ROLE_HASH, loadedAddress)
-      .call();
-    if (!isAdmin) {
-      return res.status(403).json({
-        error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can grant roles.",
-      });
-    }
-    // --- END CRITICAL FIX ---
-
-    const tx = await drugTrackingContract.methods
-      .grantRole(roleHash, accountAddress)
-      .send({ from: loadedAddress, gas: 3000000 });
-
-    res.json({
-      message: `Role ${roleName} granted to ${accountAddress} successfully.`,
-      transactionHash: tx.transactionHash,
-    });
-  } catch (e) {
-    console.error("Grant role error:", e);
-    res
-      .status(500)
-      .json({ error: "Failed to grant role.", details: e.message });
-  }
-});
-// Add this entire block to your backend/src/server.js file
 
 app.post("/api/drug/dispense", authenticateToken, async (req, res) => {
-  // The frontend only needs to send the drugId.
-  // The server knows the pharmacy's address from its loaded private key.
   const { drugId } = req.body;
-
-  if (!drugId) {
-    return res.status(400).json({ error: "Drug ID is required." });
-  }
-
+  if (!drugId) return res.status(400).json({ error: "Drug ID is required." });
   try {
-    // 1. Get the server's loaded Ethereum address (this should be the pharmacy's address)
     const loadedAddress = web3.eth.accounts.wallet[0]?.address;
-    if (!loadedAddress) {
-      return res.status(500).json({
-        error: "Signing account (Pharmacy) not loaded on the server.",
-      });
-    }
+    if (!loadedAddress)
+      return res
+        .status(500)
+        .json({ error: "Signing account not loaded on the server." });
 
-    // 2. Verify that the loaded address has the PHARMACY_ROLE on the blockchain
     const PHARMACY_ROLE_HASH = web3.utils.keccak256("PHARMACY_ROLE");
     const hasRole = await drugTrackingContract.methods
       .hasRole(PHARMACY_ROLE_HASH, loadedAddress)
       .call();
+    if (!hasRole)
+      return res
+        .status(403)
+        .json({
+          error:
+            "Unauthorized: The server's account does not have the PHARMACY_ROLE.",
+        });
 
-    if (!hasRole) {
-      return res.status(403).json({
-        error:
-          "Unauthorized: The server's account does not have the PHARMACY_ROLE.",
-      });
-    }
-
-    // 3. Verify that the pharmacy is the current owner of the drug
     const drugDetails = await drugTrackingContract.methods
       .verifyDrug(drugId)
       .call();
     if (
       drugDetails.currentOwner.toLowerCase() !== loadedAddress.toLowerCase()
     ) {
-      return res.status(403).json({
-        error: "Forbidden: You are not the current owner of this drug.",
-      });
+      return res
+        .status(403)
+        .json({
+          error: "Forbidden: You are not the current owner of this drug.",
+        });
     }
 
-    // 4. Define the parameters for dispensing
-    // The "zero address" is a common convention to signify that an asset has been "burned" or removed from circulation.
     const newOwnerAddress = "0x0000000000000000000000000000000000000000";
     const newStatus = "DISPENSED_TO_PATIENT";
-
-    // 5. Prepare the smart contract method call
     const contractMethod = drugTrackingContract.methods.transferDrug(
       drugId,
       newOwnerAddress,
       newStatus
     );
-
-    // 6. Estimate gas and get the current gas price
     const estimatedGas = await contractMethod.estimateGas({
       from: loadedAddress,
     });
-    const gasPrice = await web3.eth.getGasPrice();
 
-    console.log(`→ Dispensing Drug: ${drugId}`);
-    console.log(`  - Pharmacy: ${loadedAddress}`);
-    console.log(`  - Estimated Gas: ${estimatedGas}`);
+    // --- GAS PRICE FIX ---
+    const baseGasPrice = await web3.eth.getGasPrice();
+    const gasPrice = (BigInt(baseGasPrice) * 120n) / 100n;
+    console.log(
+      `→ Dispensing Drug | Base Gas: ${baseGasPrice}, Offered Gas: ${gasPrice}`
+    );
 
-    // 7. Send the transaction to the blockchain
     const receipt = await contractMethod.send({
       from: loadedAddress,
-      gas: estimatedGas + 100000, // Add a buffer to the gas limit
-      gasPrice: gasPrice,
+      gas: estimatedGas + 100000,
+      gasPrice,
     });
-
-    // 8. Send a success response to the frontend
-    res.status(200).json({
-      message: `Drug ${drugId} dispensed successfully.`,
-      transactionHash: receipt.transactionHash,
-    });
+    res
+      .status(200)
+      .json({
+        message: `Drug ${drugId} dispensed successfully.`,
+        transactionHash: receipt.transactionHash,
+      });
   } catch (error) {
-    // 9. Handle potential errors gracefully
     console.error("Dispense drug error:", error);
-    // Provide a specific error message if the contract reverts
     if (error.message.includes("revert")) {
       const reason = error.message.match(/revert (.*)/);
-      return res.status(400).json({
-        error: `Transaction failed: ${
-          reason ? reason[1] : "Check contract conditions."
-        }`,
-      });
-    }
-    res.status(500).json({
-      error: "Failed to dispense drug due to a server or blockchain error.",
-      details: error.message,
-    });
-  }
-});
-
-// POST /api/admin/revokeRole
-app.post("/api/admin/revokeRole", async (req, res) => {
-  const { roleName, accountAddress } = req.body;
-
-  if (!roleName || !accountAddress) {
-    return res
-      .status(400)
-      .json({ error: "Missing roleName or accountAddress." });
-  }
-  if (!web3.utils.isAddress(accountAddress)) {
-    return res.status(400).json({ error: "Invalid accountAddress." });
-  }
-
-  let roleHash;
-  switch (roleName.toUpperCase()) {
-    case "MANUFACTURER_ROLE":
-      roleHash = web3.utils.keccak256("MANUFACTURER_ROLE");
-      break;
-    case "DISTRIBUTOR_ROLE":
-      roleHash = web3.utils.keccak256("DISTRIBUTOR_ROLE");
-      break;
-    case "PHARMACY_ROLE":
-      roleHash = web3.utils.keccak256("PHARMACY_ROLE");
-      break;
-    case "REGULATOR_ROLE":
-      roleHash = web3.utils.keccak256("REGULATOR_ROLE");
-      break;
-    default:
-      return res.status(400).json({ error: "Invalid role name for revoking." });
-  }
-
-  try {
-    const loadedAddress = web3.eth.accounts.wallet[0]?.address;
-    if (!loadedAddress) {
       return res
-        .status(500)
-        .json({ error: "Admin signing account not loaded." });
+        .status(400)
+        .json({
+          error: `Transaction failed: ${
+            reason ? reason[1] : "Check contract conditions."
+          }`,
+        });
     }
-
-    // --- CRITICAL FIX HERE ---
-    // Use the correct hash for DEFAULT_ADMIN_ROLE when checking admin status
-    const DEFAULT_ADMIN_ROLE_HASH =
-      "0x0000000000000000000000000000000000000000000000000000000000000000";
-    const isAdmin = await drugTrackingContract.methods
-      .hasRole(DEFAULT_ADMIN_ROLE_HASH, loadedAddress)
-      .call();
-    if (!isAdmin) {
-      return res.status(403).json({
-        error: "Unauthorized: Only DEFAULT_ADMIN_ROLE can grant roles.",
-      });
-    }
-    // --- END CRITICAL FIX ---
-
-    const tx = await drugTrackingContract.methods
-      .revokeRole(roleHash, accountAddress)
-      .send({ from: loadedAddress, gas: 3000000 });
-
-    res.json({
-      message: `Role ${roleName} revoked from ${accountAddress} successfully.`,
-      transactionHash: tx.transactionHash,
-    });
-  } catch (e) {
-    console.error("Revoke role error:", e);
     res
       .status(500)
-      .json({ error: "Failed to revoke role.", details: e.message });
+      .json({
+        error: "Failed to dispense drug due to a server or blockchain error.",
+        details: error.message,
+      });
   }
 });
+
 // --- Start Server ---
 loadContract()
   .then(() => {
     app.listen(PORT, async () => {
       await connectToMongoDb();
       console.log(`Server running at port ${PORT}`);
-      console.log(`Connected to Web3 at: ${process.env.WEB3_PROVIDER_URL}`);
     });
   })
   .catch((e) => {
