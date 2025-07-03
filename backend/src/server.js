@@ -367,6 +367,7 @@ app.get("/api/drug/verify/:drugId", async (req, res) => {
         toAddress: e.to, // Assuming 'to' is the field name
         details: e.details,
         timestamp: e.eventTimestamp,
+        blockNumber: e.blockNumber, // <-- ADD THIS LINE
       })),
     });
   } catch (err) {
