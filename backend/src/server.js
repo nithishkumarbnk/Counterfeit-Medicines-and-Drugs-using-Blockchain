@@ -230,20 +230,16 @@ app.post("/api/drug/manufacture", authenticateToken, async (req, res) => {
       gas: estimatedGas + 100000,
       gasPrice,
     });
-    res
-      .status(200)
-      .json({
-        message: "Drug manufactured successfully.",
-        transactionHash: receipt.transactionHash,
-      });
+    res.status(200).json({
+      message: "Drug manufactured successfully.",
+      transactionHash: receipt.transactionHash,
+    });
   } catch (err) {
     console.error("Manufacture error:", err.message || err);
-    res
-      .status(500)
-      .json({
-        error: "Failed to manufacture drug.",
-        details: err.message || "Unknown error",
-      });
+    res.status(500).json({
+      error: "Failed to manufacture drug.",
+      details: err.message || "Unknown error",
+    });
   }
 });
 
@@ -281,20 +277,16 @@ app.post("/api/drug/transfer", authenticateToken, async (req, res) => {
       gas: estimatedGas + 100000,
       gasPrice,
     });
-    res
-      .status(200)
-      .json({
-        message: "Drug transferred successfully.",
-        transactionHash: receipt.transactionHash,
-      });
+    res.status(200).json({
+      message: "Drug transferred successfully.",
+      transactionHash: receipt.transactionHash,
+    });
   } catch (err) {
     console.error("Transfer route failure:", err.message || err);
-    res
-      .status(500)
-      .json({
-        error: "Failed to transfer drug.",
-        details: err.message || "Unknown error",
-      });
+    res.status(500).json({
+      error: "Failed to transfer drug.",
+      details: err.message || "Unknown error",
+    });
   }
 });
 
@@ -345,6 +337,43 @@ app.get(
     }
   }
 );
+// In backend/src/server.js
+app.get("/api/drug/verify/:drugId", async (req, res) => {
+  const drugId = req.params.drugId;
+
+  try {
+    // FIX 1: Query by 'id' field, not '_id'
+    const drug = await mongoDb.collection("drugs").findOne({ id: drugId });
+    if (!drug) return res.status(404).json({ message: "Drug not found." });
+
+    // FIX 2: Query history by the drug's actual ID field
+    const history = await mongoDb
+      .collection("drugHistoryEvents")
+      .find({ drugId: drug.id }) // Use drug.id to ensure consistency
+      .sort({ blockNumber: 1, logIndex: 1 })
+      .toArray();
+
+    res.json({
+      productId: drug.productId,
+      batchId: drug.batchId,
+      // FIX 3 & 4: Use correct field names from MongoDB document
+      manufacturer: drug.manufacturer,
+      currentOwner: drug.currentOwner,
+      status: drug.status,
+      history: history.map((e) => ({
+        eventType: e.eventType,
+        // FIX 5 & 6: Use correct field names from MongoDB history event document
+        fromAddress: e.from, // Assuming 'from' is the field name
+        toAddress: e.to, // Assuming 'to' is the field name
+        details: e.details,
+        timestamp: e.eventTimestamp,
+      })),
+    });
+  } catch (err) {
+    console.error("Verify error:", err);
+    res.status(500).json({ error: "Verify failed." });
+  }
+});
 
 app.post("/api/drug/dispense", authenticateToken, async (req, res) => {
   const { drugId } = req.body;
@@ -361,12 +390,10 @@ app.post("/api/drug/dispense", authenticateToken, async (req, res) => {
       .hasRole(PHARMACY_ROLE_HASH, loadedAddress)
       .call();
     if (!hasRole)
-      return res
-        .status(403)
-        .json({
-          error:
-            "Unauthorized: The server's account does not have the PHARMACY_ROLE.",
-        });
+      return res.status(403).json({
+        error:
+          "Unauthorized: The server's account does not have the PHARMACY_ROLE.",
+      });
 
     const drugDetails = await drugTrackingContract.methods
       .verifyDrug(drugId)
@@ -374,11 +401,9 @@ app.post("/api/drug/dispense", authenticateToken, async (req, res) => {
     if (
       drugDetails.currentOwner.toLowerCase() !== loadedAddress.toLowerCase()
     ) {
-      return res
-        .status(403)
-        .json({
-          error: "Forbidden: You are not the current owner of this drug.",
-        });
+      return res.status(403).json({
+        error: "Forbidden: You are not the current owner of this drug.",
+      });
     }
 
     const newOwnerAddress = "0x0000000000000000000000000000000000000000";
@@ -404,30 +429,24 @@ app.post("/api/drug/dispense", authenticateToken, async (req, res) => {
       gas: estimatedGas + 100000,
       gasPrice,
     });
-    res
-      .status(200)
-      .json({
-        message: `Drug ${drugId} dispensed successfully.`,
-        transactionHash: receipt.transactionHash,
-      });
+    res.status(200).json({
+      message: `Drug ${drugId} dispensed successfully.`,
+      transactionHash: receipt.transactionHash,
+    });
   } catch (error) {
     console.error("Dispense drug error:", error);
     if (error.message.includes("revert")) {
       const reason = error.message.match(/revert (.*)/);
-      return res
-        .status(400)
-        .json({
-          error: `Transaction failed: ${
-            reason ? reason[1] : "Check contract conditions."
-          }`,
-        });
-    }
-    res
-      .status(500)
-      .json({
-        error: "Failed to dispense drug due to a server or blockchain error.",
-        details: error.message,
+      return res.status(400).json({
+        error: `Transaction failed: ${
+          reason ? reason[1] : "Check contract conditions."
+        }`,
       });
+    }
+    res.status(500).json({
+      error: "Failed to dispense drug due to a server or blockchain error.",
+      details: error.message,
+    });
   }
 });
 
