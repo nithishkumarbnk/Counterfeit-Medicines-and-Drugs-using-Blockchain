@@ -16,6 +16,7 @@ import ManufacturerDashboard from "./components/ManufacturerDashboard";
 import DistributorPharmacyDashboard from "./components/DistributorPharmacyDashboard";
 import RegulatorDashboard from "./components/RegulatorDashboard";
 import AdminDashboard from "./components/AdminDashboard";
+import PharmacyDashboard from "./components/PharmacyDashboard"; // Add this import
 
 // This variable will be injected by Vercel from your environment variables.
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
@@ -125,13 +126,25 @@ function App() {
           />
         );
 
+      // In renderTabContent()
       case "Transfer":
-        return (
-          <DistributorPharmacyDashboard
-            API_BASE_URL={API_BASE_URL}
-            authToken={authToken}
-          />
-        );
+        if (userRoles.includes("DISTRIBUTOR_ROLE")) {
+          return (
+            <DistributorPharmacyDashboard
+              API_BASE_URL={API_BASE_URL}
+              authToken={authToken}
+            />
+          );
+        }
+        if (userRoles.includes("PHARMACY_ROLE")) {
+          return (
+            <PharmacyDashboard // Use the new component
+              API_BASE_URL={API_BASE_URL}
+              authToken={authToken}
+            />
+          );
+        }
+        return null; // Or show an error
 
       case "Log Violation":
         return (

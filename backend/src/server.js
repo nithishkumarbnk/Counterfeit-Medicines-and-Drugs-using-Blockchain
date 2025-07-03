@@ -613,6 +613,111 @@ app.post("/api/admin/grantRole", async (req, res) => {
       .json({ error: "Failed to grant role.", details: e.message });
   }
 });
+// Add this entire block to your backend/src/server.js file
+
+app.post("/api/drug/dispense", authenticateToken, async (req, res) => {
+  // The frontend only needs to send the drugId.
+  // The server knows the pharmacy's address from its loaded private key.
+  const { drugId } = req.body;
+
+  if (!drugId) {
+    return res.status(400).json({ error: "Drug ID is required." });
+  }
+
+  try {
+    // 1. Get the server's loaded Ethereum address (this should be the pharmacy's address)
+    const loadedAddress = web3.eth.accounts.wallet[0]?.address;
+    if (!loadedAddress) {
+      return res
+        .status(500)
+        .json({
+          error: "Signing account (Pharmacy) not loaded on the server.",
+        });
+    }
+
+    // 2. Verify that the loaded address has the PHARMACY_ROLE on the blockchain
+    const PHARMACY_ROLE_HASH = web3.utils.keccak256("PHARMACY_ROLE");
+    const hasRole = await drugTrackingContract.methods
+      .hasRole(PHARMACY_ROLE_HASH, loadedAddress)
+      .call();
+
+    if (!hasRole) {
+      return res
+        .status(403)
+        .json({
+          error:
+            "Unauthorized: The server's account does not have the PHARMACY_ROLE.",
+        });
+    }
+
+    // 3. Verify that the pharmacy is the current owner of the drug
+    const drugDetails = await drugTrackingContract.methods
+      .verifyDrug(drugId)
+      .call();
+    if (
+      drugDetails.currentOwner.toLowerCase() !== loadedAddress.toLowerCase()
+    ) {
+      return res
+        .status(403)
+        .json({
+          error: "Forbidden: You are not the current owner of this drug.",
+        });
+    }
+
+    // 4. Define the parameters for dispensing
+    // The "zero address" is a common convention to signify that an asset has been "burned" or removed from circulation.
+    const newOwnerAddress = "0x0000000000000000000000000000000000000000";
+    const newStatus = "DISPENSED_TO_PATIENT";
+
+    // 5. Prepare the smart contract method call
+    const contractMethod = drugTrackingContract.methods.transferDrug(
+      drugId,
+      newOwnerAddress,
+      newStatus
+    );
+
+    // 6. Estimate gas and get the current gas price
+    const estimatedGas = await contractMethod.estimateGas({
+      from: loadedAddress,
+    });
+    const gasPrice = await web3.eth.getGasPrice();
+
+    console.log(`→ Dispensing Drug: ${drugId}`);
+    console.log(`  - Pharmacy: ${loadedAddress}`);
+    console.log(`  - Estimated Gas: ${estimatedGas}`);
+
+    // 7. Send the transaction to the blockchain
+    const receipt = await contractMethod.send({
+      from: loadedAddress,
+      gas: estimatedGas + 100000, // Add a buffer to the gas limit
+      gasPrice: gasPrice,
+    });
+
+    // 8. Send a success response to the frontend
+    res.status(200).json({
+      message: `Drug ${drugId} dispensed successfully.`,
+      transactionHash: receipt.transactionHash,
+    });
+  } catch (error) {
+    // 9. Handle potential errors gracefully
+    console.error("Dispense drug error:", error);
+    // Provide a specific error message if the contract reverts
+    if (error.message.includes("revert")) {
+      const reason = error.message.match(/revert (.*)/);
+      return res
+        .status(400)
+        .json({
+          error: `Transaction failed: ${
+            reason ? reason[1] : "Check contract conditions."
+          }`,
+        });
+    }
+    res.status(500).json({
+      error: "Failed to dispense drug due to a server or blockchain error.",
+      details: error.message,
+    });
+  }
+});
 
 // POST /api/admin/revokeRole
 app.post("/api/admin/revokeRole", async (req, res) => {
