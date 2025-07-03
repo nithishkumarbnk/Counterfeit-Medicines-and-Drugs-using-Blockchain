@@ -1,6 +1,4 @@
-// frontend/src/App.js
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import {
   AppBar,
   Toolbar,
@@ -13,18 +11,11 @@ import {
 } from "@mui/material";
 import Login from "./components/Login";
 import VerifyDrug from "./components/VerifyDrug";
-// Import individual forms if still used directly, otherwise remove
-// import DrugManufacturer from "./components/DrugManufacturer";
-// import DrugTransfer from "./components/DrugTransfer";
-// import LogViolation from "./components/LogViolation";
-// import RoleManager from "./components/RoleManager";
 import DrugList from "./components/DrugList";
-
-// Import the new Dashboard components
 import ManufacturerDashboard from "./components/ManufacturerDashboard";
 import DistributorPharmacyDashboard from "./components/DistributorPharmacyDashboard";
-import RegulatorDashboard from "./components/RegulatorDashboard"; // NEW IMPORT
-import AdminDashboard from "./components/AdminDashboard"; // NEW IMPORT
+import RegulatorDashboard from "./components/RegulatorDashboard";
+import AdminDashboard from "./components/AdminDashboard";
 
 // This variable will be injected by Vercel from your environment variables.
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
@@ -33,103 +24,81 @@ function App() {
   const [authToken, setAuthToken] = useState(
     localStorage.getItem("authToken") || null
   );
-  const [userRoles, setUserRoles] = useState([]);
+  const [userRoles, setUserRoles] = useState(
+    JSON.parse(localStorage.getItem("userRoles")) || []
+  );
   const [loggedInUsername, setLoggedInUsername] = useState(
     localStorage.getItem("loggedInUsername") || ""
   );
   const [currentTab, setCurrentTab] = useState(0);
 
-  const fetchUserRoles = async (username) => {
-    // This function is now simplified as roles come directly from login
-    // For the purpose of this App.js, we'll simulate roles based on username
-    // This part is primarily for initial setup/refresh and could be replaced
-    // by a backend call to /api/user/roles if you implement that.
-    const TEST_USERS = [
-      // Re-define TEST_USERS here or ensure it's imported/accessible
-      {
-        username: "admin",
-        password: "adminPassword",
-        roles: [
-          "ADMIN_ROLE",
-          "MANUFACTURER_ROLE",
-          "REGULATOR_ROLE",
-          "DISTRIBUTOR_ROLE",
-          "PHARMACY_ROLE",
-        ],
-      },
-      {
-        username: "manufacturer",
-        password: "manuPassword",
-        roles: ["MANUFACTURER_ROLE"],
-      },
-      {
-        username: "distributor",
-        password: "distPassword",
-        roles: ["DISTRIBUTOR_ROLE"],
-      },
-      {
-        username: "pharmacy",
-        password: "pharmPassword",
-        roles: ["PHARMACY_ROLE"],
-      },
-      {
-        username: "regulator",
-        password: "regPassword",
-        roles: ["REGULATOR_ROLE"],
-      },
-      { username: "public", password: "publicPassword", roles: ["PUBLIC"] },
-    ];
-    const user = TEST_USERS.find((u) => u.username === username);
-    if (user) {
-      setUserRoles(user.roles);
-    } else {
-      setUserRoles(["PUBLIC"]);
-    }
-  };
-
+  // This effect runs only once on component mount to sync state from localStorage
   useEffect(() => {
-    if (authToken && loggedInUsername) {
-      const getRolesOnRefresh = async () => {
-        try {
-          // If you implement /api/user/roles in backend, use this:
-          // const response = await axios.get(`${API_BASE_URL}/api/user/roles`, {
-          //   headers: { Authorization: `Bearer ${authToken}` }
-          // });
-          // setUserRoles(response.data.roles);
-          fetchUserRoles(loggedInUsername); // Using simulated roles for now
-        } catch (err) {
-          console.error("Error fetching roles on refresh:", err);
-          setUserRoles(["PUBLIC"]);
-        }
-      };
-      getRolesOnRefresh();
-    } else {
-      setUserRoles(["PUBLIC"]);
+    const token = localStorage.getItem("authToken");
+    const username = localStorage.getItem("loggedInUsername");
+    const roles = localStorage.getItem("userRoles");
+    if (token && username && roles) {
+      setAuthToken(token);
+      setLoggedInUsername(username);
+      setUserRoles(JSON.parse(roles));
     }
-  }, [authToken, loggedInUsername]);
+  }, []);
 
   const handleLoginSuccess = (token, username, roles, userAddress) => {
+    // Store all relevant info in state and localStorage
     setAuthToken(token);
     setLoggedInUsername(username);
+    setUserRoles(roles);
+
     localStorage.setItem("authToken", token);
     localStorage.setItem("loggedInUsername", username);
-    localStorage.setItem("loggedInUserAddress", userAddress); // NEW: Store userAddress
-    setUserRoles(roles); // Directly set roles from login response
+    localStorage.setItem("loggedInUserAddress", userAddress || ""); // Ensure address is stored
+    localStorage.setItem("userRoles", JSON.stringify(roles)); // Store roles as a string
   };
 
   const handleLogout = () => {
+    // Clear state
     setAuthToken(null);
     setLoggedInUsername("");
+    setUserRoles([]);
+    setCurrentTab(0);
+
+    // Clear localStorage
     localStorage.removeItem("authToken");
     localStorage.removeItem("loggedInUsername");
-    setUserRoles(["PUBLIC"]);
-    setCurrentTab(0);
+    localStorage.removeItem("loggedInUserAddress");
+    localStorage.removeItem("userRoles");
   };
 
   const handleTabChange = (event, newValue) => {
     setCurrentTab(newValue);
   };
 
+  // --- DYNAMIC TAB CONFIGURATION (THE FIX) ---
+  const allTabs = [
+    { label: "Verify Drug", requiredRole: null }, // Always visible
+    { label: "Manufacture", requiredRole: "MANUFACTURER_ROLE" },
+    { label: "Transfer", requiredRole: "DISTRIBUTOR_ROLE" }, // Special case handled below
+    { label: "Log Violation", requiredRole: "REGULATOR_ROLE" },
+    { label: "All Drugs", requiredRole: null }, // Always visible
+    { label: "Admin Roles", requiredRole: "ADMIN_ROLE" },
+  ];
+
+  // Filter tabs based on the current user's roles
+  const visibleTabs = allTabs.filter((tab) => {
+    if (!tab.requiredRole) return true; // Show tabs with no required role
+    // Special case for the Transfer tab (visible for both Distributor and Pharmacy)
+    if (tab.label === "Transfer") {
+      return (
+        userRoles.includes("DISTRIBUTOR_ROLE") ||
+        userRoles.includes("PHARMACY_ROLE")
+      );
+    }
+    return userRoles.includes(tab.requiredRole);
+  });
+  // --- END OF DYNAMIC TAB FIX ---
+
+  // --- NEW RENDER FUNCTION (THE FIX) ---
   const renderTabContent = () => {
     if (!authToken) {
       return (
@@ -140,59 +109,52 @@ function App() {
       );
     }
 
-    switch (currentTab) {
-      case 0: // Verify Drug (Publicly accessible)
+    // Get the label of the currently selected tab from our dynamic list
+    const selectedTabLabel = visibleTabs[currentTab]?.label;
+
+    switch (selectedTabLabel) {
+      case "Verify Drug":
         return <VerifyDrug API_BASE_URL={API_BASE_URL} authToken={authToken} />;
-      case 1: // Manufacturer Dashboard
-        return userRoles.includes("MANUFACTURER_ROLE") ? (
+
+      case "Manufacture":
+        return (
           <ManufacturerDashboard
             API_BASE_URL={API_BASE_URL}
             authToken={authToken}
             loggedInUsername={loggedInUsername}
           />
-        ) : (
-          <Typography variant="h6" color="error" sx={{ mt: 4 }}>
-            Access Denied: You do not have MANUFACTURER_ROLE.
-          </Typography>
         );
-      case 2: // Distributor/Pharmacy Dashboard
-        return userRoles.includes("DISTRIBUTOR_ROLE") ||
-          userRoles.includes("PHARMACY_ROLE") ? (
+
+      case "Transfer":
+        return (
           <DistributorPharmacyDashboard
             API_BASE_URL={API_BASE_URL}
             authToken={authToken}
-            loggedInUsername={loggedInUsername}
           />
-        ) : (
-          <Typography variant="h6" color="error" sx={{ mt: 4 }}>
-            Access Denied: You do not have DISTRIBUTOR_ROLE or PHARMACY_ROLE.
-          </Typography>
         );
-      case 3: // Regulator Dashboard
-        return userRoles.includes("REGULATOR_ROLE") ? (
+
+      case "Log Violation":
+        return (
           <RegulatorDashboard
             API_BASE_URL={API_BASE_URL}
             authToken={authToken}
           />
-        ) : (
-          <Typography variant="h6" color="error" sx={{ mt: 4 }}>
-            Access Denied: You do not have REGULATOR_ROLE.
-          </Typography>
         );
-      case 4: // All Drugs List
+
+      case "All Drugs":
         return <DrugList API_BASE_URL={API_BASE_URL} authToken={authToken} />;
-      case 5: // Admin Dashboard
-        return userRoles.includes("ADMIN_ROLE") ? (
+
+      case "Admin Roles":
+        return (
           <AdminDashboard API_BASE_URL={API_BASE_URL} authToken={authToken} />
-        ) : (
-          <Typography variant="h6" color="error" sx={{ mt: 4 }}>
-            Access Denied: You do not have ADMIN_ROLE.
-          </Typography>
         );
+
       default:
+        // Fallback to the first visible tab's content if something goes wrong
         return <VerifyDrug API_BASE_URL={API_BASE_URL} authToken={authToken} />;
     }
   };
+  // --- END OF NEW RENDER FUNCTION ---
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -217,6 +179,7 @@ function App() {
       </AppBar>
       {authToken && (
         <AppBar position="static" color="default">
+          {/* --- NEW TABS RENDERING (THE FIX) --- */}
           <Tabs
             value={currentTab}
             onChange={handleTabChange}
@@ -226,18 +189,11 @@ function App() {
             scrollButtons="auto"
             aria-label="main navigation tabs"
           >
-            <Tab label="Verify Drug" />
-            {userRoles.includes("MANUFACTURER_ROLE") && (
-              <Tab label="Manufacture" />
-            )}
-            {(userRoles.includes("DISTRIBUTOR_ROLE") ||
-              userRoles.includes("PHARMACY_ROLE")) && <Tab label="Transfer" />}
-            {userRoles.includes("REGULATOR_ROLE") && (
-              <Tab label="Log Violation" />
-            )}
-            <Tab label="All Drugs" />
-            {userRoles.includes("ADMIN_ROLE") && <Tab label="Admin Roles" />}
+            {visibleTabs.map((tab, index) => (
+              <Tab key={index} label={tab.label} />
+            ))}
           </Tabs>
+          {/* --- END OF NEW TABS RENDERING --- */}
         </AppBar>
       )}
       <Container maxWidth="lg" sx={{ mt: 4 }}>
