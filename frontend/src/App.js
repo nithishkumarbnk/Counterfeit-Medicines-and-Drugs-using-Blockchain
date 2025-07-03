@@ -24,40 +24,45 @@ function App() {
   const [authToken, setAuthToken] = useState(null);
   const [userRoles, setUserRoles] = useState([]);
   const [loggedInUsername, setLoggedInUsername] = useState("");
+  // --- FIX: Add state for the user's address ---
+  const [loggedInUserAddress, setLoggedInUserAddress] = useState("");
   const [currentTab, setCurrentTab] = useState(0);
 
+  // This effect runs on initial load to restore session from localStorage
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     const username = localStorage.getItem("loggedInUsername");
     const roles = localStorage.getItem("userRoles");
-    if (token && username && roles) {
+    const address = localStorage.getItem("loggedInUserAddress"); // <-- Get address
+    if (token && username && roles && address) {
       setAuthToken(token);
       setLoggedInUsername(username);
       setUserRoles(JSON.parse(roles));
+      setLoggedInUserAddress(address); // <-- Restore address to state
     }
   }, []);
 
-  // --- THIS IS THE CORRECTED FUNCTION DEFINITION ---
-  // It now correctly accepts 'userAddress' as the fourth parameter.
+  // This function now correctly sets the address in the state
   const handleLoginSuccess = (token, username, roles, userAddress) => {
     setAuthToken(token);
     setLoggedInUsername(username);
     setUserRoles(roles);
+    setLoggedInUserAddress(userAddress); // <-- FIX: Set address in state
 
     localStorage.setItem("authToken", token);
     localStorage.setItem("loggedInUsername", username);
-    // This line will now work correctly because userAddress is defined.
     localStorage.setItem("loggedInUserAddress", userAddress || "");
     localStorage.setItem("userRoles", JSON.stringify(roles));
   };
-  // --- END OF FIX ---
 
   const handleLogout = () => {
+    // Clear all state variables
     setAuthToken(null);
     setLoggedInUsername("");
     setUserRoles([]);
+    setLoggedInUserAddress(""); // <-- FIX: Clear address from state
     setCurrentTab(0);
-    localStorage.clear(); // Clears everything from localStorage
+    localStorage.clear(); // Clear everything from storage
   };
 
   const handleTabChange = (event, newValue) => {
@@ -68,7 +73,7 @@ function App() {
     { label: "Verify Drug", requiredRole: null },
     { label: "Manufacture", requiredRole: "MANUFACTURER_ROLE" },
     { label: "Transfer", requiredRole: "DISTRIBUTOR_ROLE" },
-    { label: "Dispense", requiredRole: "PHARMACY_ROLE" }, // Changed label for clarity
+    { label: "Dispense", requiredRole: "PHARMACY_ROLE" },
     { label: "Log Violation", requiredRole: "REGULATOR_ROLE" },
     { label: "All Drugs", requiredRole: null },
     { label: "Admin Roles", requiredRole: "ADMIN_ROLE" },
@@ -107,13 +112,16 @@ function App() {
           <DistributorPharmacyDashboard
             API_BASE_URL={API_BASE_URL}
             authToken={authToken}
+            userAddress={loggedInUserAddress}
           />
         );
-      case "Dispense": // Matches new label
+      case "Dispense":
+        // --- FIX: Pass the address down as a prop ---
         return (
           <PharmacyDashboard
             API_BASE_URL={API_BASE_URL}
             authToken={authToken}
+            userAddress={loggedInUserAddress}
           />
         );
       case "Log Violation":
@@ -127,7 +135,7 @@ function App() {
         return <DrugList API_BASE_URL={API_BASE_URL} authToken={authToken} />;
       case "Admin Roles":
         return (
-          <AdminDashboard API_BASE_URL={API_BAsE_URL} authToken={authToken} />
+          <AdminDashboard API_BASE_URL={API_BASE_URL} authToken={authToken} />
         );
       default:
         return <VerifyDrug API_BASE_URL={API_BASE_URL} authToken={authToken} />;

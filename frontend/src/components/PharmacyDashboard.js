@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import axios from "axios";
 
-// This is a new, simplified form component specifically for dispensing
+// This form component for dispensing remains unchanged and is correct.
 function DispenseDrugForm({ API_BASE_URL, authToken, onDispenseSuccess }) {
   const [drugId, setDrugId] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,38 +26,27 @@ function DispenseDrugForm({ API_BASE_URL, authToken, onDispenseSuccess }) {
       setError("Drug ID is required.");
       return;
     }
-
     setLoading(true);
     setError("");
     setSuccess("");
-
     try {
-      // This assumes you will create a new, dedicated endpoint in your backend
-      // for dispensing drugs, which is cleaner than reusing the 'transfer' endpoint.
       const response = await axios.post(
         `${API_BASE_URL}/api/drug/dispense`,
-        {
-          drugId: drugId,
-          // The backend will get the pharmacy's address from its own loaded key
-        },
-        {
-          headers: { Authorization: `Bearer ${authToken}` },
-        }
+        { drugId: drugId },
+        { headers: { Authorization: `Bearer ${authToken}` } }
       );
-
       setSuccess(
-        `Drug ${drugId} successfully dispensed. Transaction Hash: ${response.data.transactionHash}`
+        `Drug ${drugId} successfully dispensed. TxHash: ${response.data.transactionHash}`
       );
-      setDrugId(""); // Clear the form
+      setDrugId("");
       if (onDispenseSuccess) {
-        onDispenseSuccess(); // Notify the parent component to refresh the drug list
+        onDispenseSuccess();
       }
     } catch (err) {
       const errorMessage =
         err.response?.data?.error ||
         err.message ||
         "An unknown error occurred.";
-      console.error("Dispense error:", errorMessage);
       setError(`Failed to dispense drug: ${errorMessage}`);
     } finally {
       setLoading(false);
@@ -70,8 +59,8 @@ function DispenseDrugForm({ API_BASE_URL, authToken, onDispenseSuccess }) {
         Dispense Drug to Patient
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        This action marks the drug as sold to a patient and removes it from the
-        active supply chain.
+        This action marks the drug as sold and removes it from the active supply
+        chain.
       </Typography>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <TextField
@@ -96,14 +85,15 @@ function DispenseDrugForm({ API_BASE_URL, authToken, onDispenseSuccess }) {
   );
 }
 
-// Main Dashboard Component
-function PharmacyDashboard({ API_BASE_URL, authToken }) {
+// --- Main Dashboard Component ---
+// --- FIX: It now accepts 'userAddress' as a prop ---
+function PharmacyDashboard({ API_BASE_URL, authToken, userAddress }) {
   const [ownedDrugs, setOwnedDrugs] = useState([]);
   const [loadingDrugs, setLoadingDrugs] = useState(true);
   const [errorDrugs, setErrorDrugs] = useState("");
 
   const fetchOwnedDrugs = async () => {
-    const userAddress = localStorage.getItem("loggedInUserAddress");
+    // --- FIX: It now uses the 'userAddress' prop directly ---
     if (!userAddress) {
       setErrorDrugs(
         "Could not find your Ethereum address. Please log in again."
@@ -117,11 +107,8 @@ function PharmacyDashboard({ API_BASE_URL, authToken }) {
     try {
       const response = await axios.get(
         `${API_BASE_URL}/api/drugs/byCurrentOwner/${userAddress}`,
-        {
-          headers: { Authorization: `Bearer ${authToken}` },
-        }
+        { headers: { Authorization: `Bearer ${authToken}` } }
       );
-      // Filter out drugs that are already dispensed
       setOwnedDrugs(
         response.data.filter((drug) => drug.status !== "DISPENSED_TO_PATIENT")
       );
@@ -133,26 +120,22 @@ function PharmacyDashboard({ API_BASE_URL, authToken }) {
     }
   };
 
+  // --- FIX: The useEffect hook now depends on 'userAddress' ---
   useEffect(() => {
     fetchOwnedDrugs();
-  }, [API_BASE_URL, authToken]);
+  }, [API_BASE_URL, authToken, userAddress]);
 
   return (
     <Box sx={{ mt: 4 }}>
       <Typography variant="h4" component="h2" gutterBottom>
         Pharmacy Dashboard
       </Typography>
-
-      {/* Section for Dispensing Drugs */}
       <DispenseDrugForm
         API_BASE_URL={API_BASE_URL}
         authToken={authToken}
-        onDispenseSuccess={fetchOwnedDrugs} // Refresh list on success
+        onDispenseSuccess={fetchOwnedDrugs}
       />
-
       <Divider sx={{ my: 4 }} />
-
-      {/* Section for Listing Drugs Owned by the Pharmacy */}
       <Typography variant="h5" component="h3" gutterBottom>
         Drugs in Your Inventory
       </Typography>
