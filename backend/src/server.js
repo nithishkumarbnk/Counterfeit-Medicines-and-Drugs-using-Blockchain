@@ -34,7 +34,7 @@ const TEST_USERS = [
     username: "manufacturer",
     password: "manufacturer",
     roles: ["MANUFACTURER_ROLE"],
-    address: "0x02f1C11cc7D5ec6841666B58F030e9Afa668Afb9",
+    address: "0x5C69D627209180f88bA7b8Ce243C3384A44F0D0E",
   },
   {
     username: "regulator",
@@ -52,7 +52,7 @@ const TEST_USERS = [
     username: "pharmacy",
     password: "pharmacy",
     roles: ["PHARMACY_ROLE"],
-    address: "0x21B00Cc4d6b21164Cd5e8B98C1e3834d44B42fD6",
+    address: "0x02f1C11cc7D5ec6841666B58F030e9Afa668Afb9",
   }, // Add another address
   { username: "public", password: "public", roles: ["PUBLIC"] }, // For testing public view
 ];
