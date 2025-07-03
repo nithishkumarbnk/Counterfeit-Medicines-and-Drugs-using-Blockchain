@@ -82,7 +82,7 @@ constructor() Ownable(msg.sender) {
         onlyCurrentDrugOwner(_id)
     {
         require(bytes(drugs[_id].id).length > 0, "Drug not found.");
-        require(_newOwner != address(0), "New owner cannot be zero address.");
+        
 
         address oldOwner = drugs[_id].currentOwner;
         drugs[_id].currentOwner = _newOwner;
