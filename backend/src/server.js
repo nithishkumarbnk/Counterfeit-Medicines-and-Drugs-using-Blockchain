@@ -28,16 +28,19 @@ const TEST_USERS = [
       "DISTRIBUTOR_ROLE",
       "PHARMACY_ROLE",
     ],
+    address: "0x21B00Cc4d6b21164Cd5e8B98C1e3834d44B42fD6",
   },
   {
     username: "manufacturer",
     password: "manufacturer",
     roles: ["MANUFACTURER_ROLE"],
+    address: "0x21B00Cc4d6b21164Cd5e8B98C1e3834d44B42fD6",
   },
   {
-    username: "distributor",
-    password: "distributor",
-    roles: ["DISTRIBUTOR_ROLE"],
+    username: "regulator",
+    password: "regulator",
+    roles: ["REGULATOR_ROLE"],
+    address: "0x21B00Cc4d6b21164Cd5e8B98C1e3834d44B42fD6",
   },
   {
     username: "distributor",
@@ -255,19 +258,35 @@ app.get("/api/hasRole/:roleName/:address", async (req, res) => {
     res.status(500).json({ error: "Blockchain role check failed." });
   }
 });
+// THIS IS THE CORRECT BLOCK - ADD IT
 app.get(
-  "/api/drugs/byManufacturer/:address",
+  "/api/drugs/byManufacturer/:username",
   authenticateToken,
   async (req, res) => {
-    const { address } = req.params;
-    if (!web3.utils.isAddress(address)) {
-      return res.status(400).json({ error: "Invalid Ethereum address." });
-    }
     try {
+      const { username } = req.params;
+
+      // Find the user in your hardcoded TEST_USERS array to get their address
+      const user = TEST_USERS.find((u) => u.username === username);
+
+      if (!user || !user.address) {
+        // If the user is not found or doesn't have an address, return an empty array.
+        // This prevents errors for users like 'admin' who might not have a single address.
+        return res.json([]);
+      }
+
+      const manufacturerAddress = user.address;
+
+      // Now, find all drugs where the 'manufacturer' field matches the user's address.
+      // The indexer saves the address in the 'manufacturer' field.
+      // We use a regular expression for a case-insensitive search, which is robust.
       const drugs = await mongoDb
         .collection("drugs")
-        .find({ manufacturerAddress: address })
+        .find({
+          manufacturer: { $regex: new RegExp(`^${manufacturerAddress}$`, "i") },
+        })
         .toArray();
+
       res.json(drugs);
     } catch (error) {
       console.error("Error fetching drugs by manufacturer:", error);
