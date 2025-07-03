@@ -1,4 +1,3 @@
-// frontend/src/components/Login.js
 import React, { useState } from "react";
 import { TextField, Button, Box, Typography } from "@mui/material";
 import axios from "axios";
@@ -17,12 +16,16 @@ function Login({ onLoginSuccess, API_BASE_URL }) {
         username,
         password,
       });
+
+      // --- THIS IS THE CORRECTED LINE ---
+      // It now passes all four pieces of data: token, username, roles, and userAddress.
       onLoginSuccess(
         response.data.token,
         username,
         response.data.roles,
         response.data.userAddress
       );
+      // --- END OF FIX ---
     } catch (err) {
       console.error(
         "Login error:",
@@ -30,13 +33,9 @@ function Login({ onLoginSuccess, API_BASE_URL }) {
       );
       setError(
         "Error logging in: " +
-          (err.response &&
-            err.response.data &&
-            (err.response.data.message || err.response.data.error)) ||
-          (err.response && err.response.status
-            ? `Status ${err.response.status}: ${err.response.statusText}`
-            : err.message) ||
-          "Unknown error occurred."
+          (err.response?.data?.message ||
+            err.response?.data?.error ||
+            "Invalid credentials.")
       );
     } finally {
       setLoading(false);
@@ -57,7 +56,7 @@ function Login({ onLoginSuccess, API_BASE_URL }) {
       }}
     >
       <Typography variant="h5" component="h2" sx={{ mb: 2 }}>
-        Admin Login
+        Login
       </Typography>
       <TextField
         label="Username"

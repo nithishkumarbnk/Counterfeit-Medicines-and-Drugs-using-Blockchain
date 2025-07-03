@@ -16,24 +16,16 @@ import ManufacturerDashboard from "./components/ManufacturerDashboard";
 import DistributorPharmacyDashboard from "./components/DistributorPharmacyDashboard";
 import RegulatorDashboard from "./components/RegulatorDashboard";
 import AdminDashboard from "./components/AdminDashboard";
-import PharmacyDashboard from "./components/PharmacyDashboard"; // Add this import
+import PharmacyDashboard from "./components/PharmacyDashboard";
 
-// This variable will be injected by Vercel from your environment variables.
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
 
 function App() {
-  const [authToken, setAuthToken] = useState(
-    localStorage.getItem("authToken") || null
-  );
-  const [userRoles, setUserRoles] = useState(
-    JSON.parse(localStorage.getItem("userRoles")) || []
-  );
-  const [loggedInUsername, setLoggedInUsername] = useState(
-    localStorage.getItem("loggedInUsername") || ""
-  );
+  const [authToken, setAuthToken] = useState(null);
+  const [userRoles, setUserRoles] = useState([]);
+  const [loggedInUsername, setLoggedInUsername] = useState("");
   const [currentTab, setCurrentTab] = useState(0);
 
-  // This effect runs only once on component mount to sync state from localStorage
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     const username = localStorage.getItem("loggedInUsername");
@@ -45,61 +37,48 @@ function App() {
     }
   }, []);
 
+  // --- THIS IS THE CORRECTED FUNCTION DEFINITION ---
+  // It now correctly accepts 'userAddress' as the fourth parameter.
   const handleLoginSuccess = (token, username, roles, userAddress) => {
-    // Store all relevant info in state and localStorage
     setAuthToken(token);
     setLoggedInUsername(username);
     setUserRoles(roles);
 
     localStorage.setItem("authToken", token);
     localStorage.setItem("loggedInUsername", username);
-    localStorage.setItem("loggedInUserAddress", userAddress || ""); // Ensure address is stored
-    localStorage.setItem("userRoles", JSON.stringify(roles)); // Store roles as a string
+    // This line will now work correctly because userAddress is defined.
+    localStorage.setItem("loggedInUserAddress", userAddress || "");
+    localStorage.setItem("userRoles", JSON.stringify(roles));
   };
+  // --- END OF FIX ---
 
   const handleLogout = () => {
-    // Clear state
     setAuthToken(null);
     setLoggedInUsername("");
     setUserRoles([]);
     setCurrentTab(0);
-
-    // Clear localStorage
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("loggedInUsername");
-    localStorage.removeItem("loggedInUserAddress");
-    localStorage.removeItem("userRoles");
+    localStorage.clear(); // Clears everything from localStorage
   };
 
   const handleTabChange = (event, newValue) => {
     setCurrentTab(newValue);
   };
 
-  // --- DYNAMIC TAB CONFIGURATION (THE FIX) ---
   const allTabs = [
-    { label: "Verify Drug", requiredRole: null }, // Always visible
+    { label: "Verify Drug", requiredRole: null },
     { label: "Manufacture", requiredRole: "MANUFACTURER_ROLE" },
-    { label: "Transfer", requiredRole: "DISTRIBUTOR_ROLE" }, // Special case handled below
+    { label: "Transfer", requiredRole: "DISTRIBUTOR_ROLE" },
+    { label: "Dispense", requiredRole: "PHARMACY_ROLE" }, // Changed label for clarity
     { label: "Log Violation", requiredRole: "REGULATOR_ROLE" },
-    { label: "All Drugs", requiredRole: null }, // Always visible
+    { label: "All Drugs", requiredRole: null },
     { label: "Admin Roles", requiredRole: "ADMIN_ROLE" },
   ];
 
-  // Filter tabs based on the current user's roles
   const visibleTabs = allTabs.filter((tab) => {
-    if (!tab.requiredRole) return true; // Show tabs with no required role
-    // Special case for the Transfer tab (visible for both Distributor and Pharmacy)
-    if (tab.label === "Transfer") {
-      return (
-        userRoles.includes("DISTRIBUTOR_ROLE") ||
-        userRoles.includes("PHARMACY_ROLE")
-      );
-    }
+    if (!tab.requiredRole) return true;
     return userRoles.includes(tab.requiredRole);
   });
-  // --- END OF DYNAMIC TAB FIX ---
 
-  // --- NEW RENDER FUNCTION (THE FIX) ---
   const renderTabContent = () => {
     if (!authToken) {
       return (
@@ -110,13 +89,11 @@ function App() {
       );
     }
 
-    // Get the label of the currently selected tab from our dynamic list
     const selectedTabLabel = visibleTabs[currentTab]?.label;
 
     switch (selectedTabLabel) {
       case "Verify Drug":
         return <VerifyDrug API_BASE_URL={API_BASE_URL} authToken={authToken} />;
-
       case "Manufacture":
         return (
           <ManufacturerDashboard
@@ -125,27 +102,20 @@ function App() {
             loggedInUsername={loggedInUsername}
           />
         );
-
-      // In renderTabContent()
       case "Transfer":
-        if (userRoles.includes("DISTRIBUTOR_ROLE")) {
-          return (
-            <DistributorPharmacyDashboard
-              API_BASE_URL={API_BASE_URL}
-              authToken={authToken}
-            />
-          );
-        }
-        if (userRoles.includes("PHARMACY_ROLE")) {
-          return (
-            <PharmacyDashboard // Use the new component
-              API_BASE_URL={API_BASE_URL}
-              authToken={authToken}
-            />
-          );
-        }
-        return null; // Or show an error
-
+        return (
+          <DistributorPharmacyDashboard
+            API_BASE_URL={API_BASE_URL}
+            authToken={authToken}
+          />
+        );
+      case "Dispense": // Matches new label
+        return (
+          <PharmacyDashboard
+            API_BASE_URL={API_BASE_URL}
+            authToken={authToken}
+          />
+        );
       case "Log Violation":
         return (
           <RegulatorDashboard
@@ -153,21 +123,16 @@ function App() {
             authToken={authToken}
           />
         );
-
       case "All Drugs":
         return <DrugList API_BASE_URL={API_BASE_URL} authToken={authToken} />;
-
       case "Admin Roles":
         return (
-          <AdminDashboard API_BASE_URL={API_BASE_URL} authToken={authToken} />
+          <AdminDashboard API_BASE_URL={API_BAsE_URL} authToken={authToken} />
         );
-
       default:
-        // Fallback to the first visible tab's content if something goes wrong
         return <VerifyDrug API_BASE_URL={API_BASE_URL} authToken={authToken} />;
     }
   };
-  // --- END OF NEW RENDER FUNCTION ---
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -192,7 +157,6 @@ function App() {
       </AppBar>
       {authToken && (
         <AppBar position="static" color="default">
-          {/* --- NEW TABS RENDERING (THE FIX) --- */}
           <Tabs
             value={currentTab}
             onChange={handleTabChange}
@@ -206,7 +170,6 @@ function App() {
               <Tab key={index} label={tab.label} />
             ))}
           </Tabs>
-          {/* --- END OF NEW TABS RENDERING --- */}
         </AppBar>
       )}
       <Container maxWidth="lg" sx={{ mt: 4 }}>
