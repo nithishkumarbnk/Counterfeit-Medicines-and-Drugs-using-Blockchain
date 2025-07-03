@@ -342,29 +342,27 @@ app.get("/api/drug/verify/:drugId", async (req, res) => {
   const drugId = req.params.drugId;
 
   try {
-    // FIX 1: Query by 'id' field, not '_id'
     const drug = await mongoDb.collection("drugs").findOne({ _id: drugId });
     if (!drug) return res.status(404).json({ message: "Drug not found." });
 
     const history = await mongoDb
       .collection("drugHistoryEvents")
-      .find({ drugId: drug.id })
+      .find({ drugId })
       .sort({ blockNumber: 1, logIndex: 1 })
       .toArray();
 
     res.json({
       productId: drug.productId,
       batchId: drug.batchId,
-      manufacturer: drug.manufacturer,
-      currentOwner: drug.currentOwner,
+      manufacturer: drug.manufacturerAddress,
+      currentOwner: drug.currentOwnerAddress,
       status: drug.status,
       history: history.map((e) => ({
         eventType: e.eventType,
-        fromAddress: e.from,
-        toAddress: e.to,
+        fromAddress: e.fromAddress,
+        toAddress: e.toAddress,
         details: e.details,
         timestamp: e.eventTimestamp,
-        blockNumber: e.blockNumber,
       })),
     });
   } catch (err) {
