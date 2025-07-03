@@ -28,19 +28,19 @@ const TEST_USERS = [
       "DISTRIBUTOR_ROLE",
       "PHARMACY_ROLE",
     ],
-    address: "0x21B00Cc4d6b21164Cd5e8B98C1e3834d44B42fD6",
+    address: "0x02f1C11cc7D5ec6841666B58F030e9Afa668Afb9",
   },
   {
     username: "manufacturer",
     password: "manufacturer",
     roles: ["MANUFACTURER_ROLE"],
-    address: "0x21B00Cc4d6b21164Cd5e8B98C1e3834d44B42fD6",
+    address: "0x02f1C11cc7D5ec6841666B58F030e9Afa668Afb9",
   },
   {
     username: "regulator",
     password: "regulator",
     roles: ["REGULATOR_ROLE"],
-    address: "0x21B00Cc4d6b21164Cd5e8B98C1e3834d44B42fD6",
+    address: "0x02f1C11cc7D5ec6841666B58F030e9Afa668Afb9",
   },
   {
     username: "distributor",
@@ -628,11 +628,9 @@ app.post("/api/drug/dispense", authenticateToken, async (req, res) => {
     // 1. Get the server's loaded Ethereum address (this should be the pharmacy's address)
     const loadedAddress = web3.eth.accounts.wallet[0]?.address;
     if (!loadedAddress) {
-      return res
-        .status(500)
-        .json({
-          error: "Signing account (Pharmacy) not loaded on the server.",
-        });
+      return res.status(500).json({
+        error: "Signing account (Pharmacy) not loaded on the server.",
+      });
     }
 
     // 2. Verify that the loaded address has the PHARMACY_ROLE on the blockchain
@@ -642,12 +640,10 @@ app.post("/api/drug/dispense", authenticateToken, async (req, res) => {
       .call();
 
     if (!hasRole) {
-      return res
-        .status(403)
-        .json({
-          error:
-            "Unauthorized: The server's account does not have the PHARMACY_ROLE.",
-        });
+      return res.status(403).json({
+        error:
+          "Unauthorized: The server's account does not have the PHARMACY_ROLE.",
+      });
     }
 
     // 3. Verify that the pharmacy is the current owner of the drug
@@ -657,11 +653,9 @@ app.post("/api/drug/dispense", authenticateToken, async (req, res) => {
     if (
       drugDetails.currentOwner.toLowerCase() !== loadedAddress.toLowerCase()
     ) {
-      return res
-        .status(403)
-        .json({
-          error: "Forbidden: You are not the current owner of this drug.",
-        });
+      return res.status(403).json({
+        error: "Forbidden: You are not the current owner of this drug.",
+      });
     }
 
     // 4. Define the parameters for dispensing
@@ -704,13 +698,11 @@ app.post("/api/drug/dispense", authenticateToken, async (req, res) => {
     // Provide a specific error message if the contract reverts
     if (error.message.includes("revert")) {
       const reason = error.message.match(/revert (.*)/);
-      return res
-        .status(400)
-        .json({
-          error: `Transaction failed: ${
-            reason ? reason[1] : "Check contract conditions."
-          }`,
-        });
+      return res.status(400).json({
+        error: `Transaction failed: ${
+          reason ? reason[1] : "Check contract conditions."
+        }`,
+      });
     }
     res.status(500).json({
       error: "Failed to dispense drug due to a server or blockchain error.",
