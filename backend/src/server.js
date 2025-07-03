@@ -471,7 +471,50 @@ app.get("/api/getAllDrugs", async (req, res) => {
     res.status(500).json({ error: "Fetch failed." });
   }
 });
+app.get("/api/violations/all", authenticateToken, async (req, res) => {
+  try {
+    // Find all events that are of type 'ColdChainViolation'
+    const violations = await mongoDb
+      .collection("drugHistoryEvents")
+      .find({
+        eventType: "ColdChainViolation",
+      })
+      .toArray();
+    res.json(violations);
+  } catch (error) {
+    console.error("Error fetching all violations:", error);
+    res.status(500).json({ message: "Error fetching violations." });
+  }
+});
+app.get(
+  "/api/drugs/byCurrentOwner/:address",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!web3.utils.isAddress(address)) {
+        return res
+          .status(400)
+          .json({ error: "Invalid Ethereum address provided." });
+      }
 
+      // Find all drugs where the 'currentOwner' field matches the address
+      const drugs = await mongoDb
+        .collection("drugs")
+        .find({
+          currentOwner: { $regex: new RegExp(`^${address}$`, "i") }, // Case-insensitive search
+        })
+        .toArray();
+
+      res.json(drugs);
+    } catch (error) {
+      console.error("Error fetching drugs by current owner:", error);
+      res
+        .status(500)
+        .json({ message: "Error fetching drugs by current owner." });
+    }
+  }
+);
 app.post("/api/sensor-data", async (req, res) => {
   const { drugId, timestamp, temperature, humidity, senderAddress } = req.body;
   console.log(

@@ -51,7 +51,7 @@ function DistributorPharmacyDashboard({
     };
 
     fetchOwnedDrugs();
-  }, [API_BASE_URL, authToken, loggedInUserAddress]); // Re-fetch when these change
+  }, [API_BASE_URL, authToken]); // Re-fetch when these change
 
   return (
     <Box sx={{ mt: 4 }}>
