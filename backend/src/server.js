@@ -16,7 +16,6 @@ const PORT = process.env.PORT || 5000;
 // --- Global Variables ---
 const { MongoClient } = require("mongodb");
 const MONGODB_URI = process.env.MONGODB_URI;
-// --- NEW: Hardcoded Admin Credentials (for demo ONLY) ---
 const TEST_USERS = [
   {
     username: "admin",
@@ -34,7 +33,7 @@ const TEST_USERS = [
     username: "manufacturer",
     password: "manufacturer",
     roles: ["MANUFACTURER_ROLE"],
-    address: "0x5C69D627209180f88bA7b8Ce243C3384A44F0D0E",
+    address: "0x02f1C11cc7D5ec6841666B58F030e9Afa668Afb9",
   },
   {
     username: "regulator",
@@ -47,15 +46,16 @@ const TEST_USERS = [
     password: "distributor",
     roles: ["DISTRIBUTOR_ROLE"],
     address: "0x5C69D627209180f88bA7b8Ce243C3384A44F0D0E",
-  }, // Add address
+  },
   {
     username: "pharmacy",
     password: "pharmacy",
     roles: ["PHARMACY_ROLE"],
     address: "0x02f1C11cc7D5ec6841666B58F030e9Afa668Afb9",
-  }, // Add another address
-  { username: "public", password: "public", roles: ["PUBLIC"] }, // For testing public view
+  },
+  { username: "public", password: "public", roles: ["PUBLIC"] },
 ];
+
 const SECRET_TOKEN = process.env.SECRET_TOKEN; // Used for simple auth
 // --- END NEW ---
 let mongoDb;
