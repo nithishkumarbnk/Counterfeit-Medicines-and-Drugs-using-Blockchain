@@ -343,31 +343,28 @@ app.get("/api/drug/verify/:drugId", async (req, res) => {
 
   try {
     // FIX 1: Query by 'id' field, not '_id'
-    const drug = await mongoDb.collection("drugs").findOne({ id: drugId });
+    const drug = await mongoDb.collection("drugs").findOne({ _id: drugId });
     if (!drug) return res.status(404).json({ message: "Drug not found." });
 
-    // FIX 2: Query history by the drug's actual ID field
     const history = await mongoDb
       .collection("drugHistoryEvents")
-      .find({ drugId: drug.id }) // Use drug.id to ensure consistency
+      .find({ drugId: drug.id })
       .sort({ blockNumber: 1, logIndex: 1 })
       .toArray();
 
     res.json({
       productId: drug.productId,
       batchId: drug.batchId,
-      // FIX 3 & 4: Use correct field names from MongoDB document
       manufacturer: drug.manufacturer,
       currentOwner: drug.currentOwner,
       status: drug.status,
       history: history.map((e) => ({
         eventType: e.eventType,
-        // FIX 5 & 6: Use correct field names from MongoDB history event document
-        fromAddress: e.from, // Assuming 'from' is the field name
-        toAddress: e.to, // Assuming 'to' is the field name
+        fromAddress: e.from,
+        toAddress: e.to,
         details: e.details,
         timestamp: e.eventTimestamp,
-        blockNumber: e.blockNumber, // <-- ADD THIS LINE
+        blockNumber: e.blockNumber,
       })),
     });
   } catch (err) {
