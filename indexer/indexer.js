@@ -9,20 +9,20 @@ const WEB3_PROVIDER_URL = process.env.WEB3_PROVIDER_URL;
 const MONGODB_URI = process.env.MONGODB_URI;
 const DRUG_TRACKING_CONTRACT_ADDRESS =
   process.env.DRUG_TRACKING_CONTRACT_ADDRESS;
-const START_BLOCK_NUMBER = parseInt(process.env.START_BLOCK_NUMBER || "0");
+const START_BLOCK_NUMBER = parseInt(process.env.START_BLOCK_NUMBER || "0", 10);
 
 // --- Web3 Setup ---
-// Initial web3 instance for getPastEvents (can use HTTP or WSS)
 const web3 = new Web3(WEB3_PROVIDER_URL);
 
 // --- MongoDB Setup ---
 let db;
+let mongoClient;
 
 async function connectToMongo() {
-  const client = new MongoClient(MONGODB_URI);
+  mongoClient = new MongoClient(MONGODB_URI);
   try {
-    await client.connect();
-    db = client.db("drug_tracking_db");
+    await mongoClient.connect();
+    db = mongoClient.db("drug_tracking_db");
     console.log("Successfully connected to MongoDB.");
   } catch (error) {
     console.error("[MONGO_ERROR] Failed to connect to MongoDB:", error.message);
@@ -45,13 +45,17 @@ try {
   process.exit(1);
 }
 
-// Contract instance for historical events (can use initial web3 instance)
+// Contract instance
 const drugTrackingContract = new web3.eth.Contract(
   drugTrackingABI,
   DRUG_TRACKING_CONTRACT_ADDRESS
 );
 
-// --- Indexer Logic ---
+// --- Helpers ---
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function getLatestIndexedBlock() {
   try {
@@ -65,12 +69,13 @@ async function getLatestIndexedBlock() {
   }
 }
 
+// NOTE: now this means "last scanned block", not just "last event block"
 async function updateLatestIndexedBlock(blockNumber) {
   try {
     const collection = db.collection("indexer_state");
     await collection.updateOne(
       { _id: "last_indexed_block" },
-      { $set: { blockNumber: blockNumber, timestamp: new Date() } },
+      { $set: { blockNumber, timestamp: new Date() } },
       { upsert: true }
     );
   } catch (error) {
@@ -82,8 +87,43 @@ async function updateLatestIndexedBlock(blockNumber) {
   }
 }
 
+async function fetchEventsWithRetry(fromBlock, toBlock, maxRetries = 5) {
+  let attempt = 0;
+
+  while (true) {
+    try {
+      return await drugTrackingContract.getPastEvents("allEvents", {
+        fromBlock,
+        toBlock,
+      });
+    } catch (error) {
+      const msg = error && error.message ? error.message : "";
+
+      const isThroughputError = msg.includes(
+        "compute units per second capacity"
+      );
+      const isRangeHint = msg.includes("10 block range");
+
+      if ((isThroughputError || isRangeHint) && attempt < maxRetries) {
+        const delayMs = 1000 * Math.pow(2, attempt); // 1s, 2s, 4s, 8s, 16s
+        console.warn(
+          `  Throttled by Alchemy (attempt ${
+            attempt + 1
+          }/${maxRetries}). Retrying in ${delayMs} ms...`
+        );
+        await sleep(delayMs);
+        attempt++;
+        continue;
+      }
+
+      // If it's not a throttling error or we ran out of retries, rethrow
+      throw error;
+    }
+  }
+}
+
 async function processEvent(event) {
-  const session = db.client.startSession();
+  const session = mongoClient.startSession();
   session.startTransaction();
   try {
     const {
@@ -186,6 +226,7 @@ async function processEvent(event) {
         await session.abortTransaction();
         return;
     }
+
     let timestamp = event.timestamp;
     if (!timestamp) {
       const block = await web3.eth.getBlock(event.blockNumber);
@@ -229,7 +270,11 @@ async function startListening() {
   const latestBlock = Number(latestBlockBigInt);
   console.log(`Current latest block on chain: ${latestBlock}`);
 
-  const BATCH_SIZE = 500;
+  const MAX_BLOCK_RANGE = 10;
+  const BATCH_SIZE = Math.min(
+    parseInt(process.env.BATCH_SIZE || "10", 10),
+    MAX_BLOCK_RANGE
+  );
 
   let currentBlock = Number(fromBlock);
 
@@ -239,10 +284,7 @@ async function startListening() {
     console.log(`  Fetching events from block ${currentBlock} to ${toBlock}`);
 
     try {
-      const events = await drugTrackingContract.getPastEvents("allEvents", {
-        fromBlock: currentBlock,
-        toBlock: toBlock,
-      });
+      const events = await fetchEventsWithRetry(currentBlock, toBlock);
 
       console.log(`  Found ${events.length} events in this batch.`);
       events.sort((a, b) => {
@@ -257,17 +299,25 @@ async function startListening() {
 
       for (const event of events) {
         await processEvent(event);
-        await updateLatestIndexedBlock(Number(event.blockNumber));
       }
+
+      // IMPORTANT: advance the indexed block to the end of this batch,
+      // even if there were zero events, so we don't rescan next time.
+      await updateLatestIndexedBlock(toBlock);
+
+      // Small delay between batches to avoid hitting CU/s limit
+      await sleep(200);
       currentBlock = toBlock + 1;
     } catch (error) {
       console.error(
         `Error fetching events from block ${currentBlock} to ${toBlock}:`,
         error
       );
+      // If you want to keep going instead of exiting, comment this out:
       process.exit(1);
     }
   }
+
   console.log(
     "Finished processing past events. Attempting to start real-time listener."
   );
