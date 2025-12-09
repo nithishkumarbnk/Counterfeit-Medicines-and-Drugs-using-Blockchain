@@ -370,6 +370,67 @@ app.get("/api/drug/verify/:drugId", async (req, res) => {
     res.status(500).json({ error: "Verify failed." });
   }
 });
+app.get("/api/hasRole/:role/:address", async (req, res) => {
+  const { role, address } = req.params;
+
+  if (!web3.utils.isAddress(address)) {
+    return res.status(400).json({ error: "Invalid Ethereum address." });
+  }
+
+  try {
+    const roleHash = web3.utils.keccak256(role);
+    const hasRole = await drugTrackingContract.methods
+      .hasRole(roleHash, address)
+      .call();
+    res.json({ hasRole });
+  } catch (err) {
+    console.error("Error in hasRole check:", err);
+    res.status(500).json({ error: "Role check failed." });
+  }
+});
+app.post("/api/admin/grantRole", authenticateToken, async (req, res) => {
+  const { role, address } = req.body;
+
+  if (!web3.utils.isAddress(address) || !role) {
+    return res.status(400).json({ error: "Invalid role or address." });
+  }
+
+  try {
+    const roleHash = web3.utils.keccak256(role);
+    const adminAddress = web3.eth.accounts.wallet[0]?.address;
+
+    if (!adminAddress) {
+      return res.status(500).json({ error: "Admin account not loaded." });
+    }
+
+    const hasAdminRole = await drugTrackingContract.methods
+      .hasRole(web3.utils.keccak256("DEFAULT_ADMIN_ROLE"), adminAddress)
+      .call();
+
+    if (!hasAdminRole) {
+      return res.status(403).json({ error: "Not an admin." });
+    }
+
+    const tx = drugTrackingContract.methods.grantRole(roleHash, address);
+    const estimatedGas = await tx.estimateGas({ from: adminAddress });
+    const gasPrice = (BigInt(await web3.eth.getGasPrice()) * 120n) / 100n;
+
+    const receipt = await tx.send({
+      from: adminAddress,
+      gas: estimatedGas + 100000,
+      gasPrice,
+    });
+
+    res.status(200).json({
+      message: `Granted ${role} to ${address}`,
+      txHash: receipt.transactionHash,
+    });
+  } catch (error) {
+    console.error("Grant role error:", error);
+    res.status(500).json({ error: "Granting role failed.", details: error.message });
+  }
+});
+
 
 app.post("/api/drug/dispense", authenticateToken, async (req, res) => {
   const { drugId } = req.body;
