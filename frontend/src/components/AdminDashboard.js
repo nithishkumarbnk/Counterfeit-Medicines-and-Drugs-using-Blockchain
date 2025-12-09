@@ -7,7 +7,7 @@ import RoleManager from "./RoleManager";
 function AdminDashboard({ API_BASE_URL, authToken }) {
   return (
     <Box sx={{ mt: 4 }}>
-      {/* Page Header */}
+      {/* Header */}
       <Stack direction="row" alignItems="center" spacing={1.8} sx={{ mb: 3 }}>
         <Box
           sx={{
@@ -35,16 +35,8 @@ function AdminDashboard({ API_BASE_URL, authToken }) {
         </Box>
       </Stack>
 
-      {/* Two-Panel Layout */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-          gap: 3,
-        }}
-      >
-        <RoleManager API_BASE_URL={API_BASE_URL} authToken={authToken} />
-      </Box>
+      {/* Just render RoleManager full width – it already has its own 2-column layout */}
+      <RoleManager API_BASE_URL={API_BASE_URL} authToken={authToken} />
     </Box>
   );
 }
