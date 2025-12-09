@@ -25,7 +25,7 @@ function DrugList({ API_BASE_URL, authToken }) {
       setError("");
       try {
         // TODO: adjust endpoint to match your backend
-        const res = await fetch(`${API_BASE_URL}/api/drugs`, {
+        const res = await fetch(`${API_BASE_URL}/api/getAllDrugs`, {
           headers: {
             Authorization: `Bearer ${authToken}`,
           },

@@ -29,11 +29,13 @@ function VerifyDrug({ API_BASE_URL, authToken }) {
     setResult(null);
 
     try {
-      // TODO: adjust endpoint to match your backend route
+      // ✅ match your backend: GET /api/drug/verify/:drugId
       const res = await fetch(
-        `${API_BASE_URL}/api/verify-drug?drugId=${encodeURIComponent(query)}`,
+        `${API_BASE_URL}/api/drug/verify/${encodeURIComponent(query)}`,
         {
           headers: {
+            // backend verify route does NOT require auth,
+            // but sending it is fine and future-proof
             Authorization: `Bearer ${authToken}`,
           },
         }
@@ -45,7 +47,34 @@ function VerifyDrug({ API_BASE_URL, authToken }) {
       }
 
       const data = await res.json();
-      setResult(data);
+
+      // 🔁 Transform backend response -> shape used by UI
+      const history = Array.isArray(data.history) ? data.history : [];
+      const lastEvent = history[history.length - 1];
+
+      const transformed = {
+        drugId: query,
+        status: data.status || "UNKNOWN",
+        productId: data.productId || null,
+        batchId: data.batchId || null,
+        manufacturerAddress: data.manufacturer || data.manufacturerAddress,
+        currentOwnerAddress: data.currentOwner || data.currentOwnerAddress,
+
+        // infer flags/timestamps from history if available
+        coldChainViolated: history.some(
+          (e) => e.eventType === "ColdChainViolation"
+        ),
+        lastUpdateTimestamp: lastEvent ? lastEvent.timestamp : null,
+
+        // these aren’t returned by your verify route (yet),
+        // so keep them null for now – UI will handle "N/A"
+        lastSyncedBlock: null,
+        transactionHash: null,
+        contractAddress: null,
+        history,
+      };
+
+      setResult(transformed);
     } catch (err) {
       console.error(err);
       setError(err.message || "Failed to verify drug");
