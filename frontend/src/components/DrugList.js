@@ -24,7 +24,6 @@ function DrugList({ API_BASE_URL, authToken }) {
       setLoading(true);
       setError("");
       try {
-        // TODO: adjust endpoint to match your backend
         const res = await fetch(`${API_BASE_URL}/api/getAllDrugs`, {
           headers: {
             Authorization: `Bearer ${authToken}`,
@@ -36,10 +35,15 @@ function DrugList({ API_BASE_URL, authToken }) {
         }
         const data = await res.json();
 
-        // Make sure each row has an id field for DataGrid
+        // Normalize data for DataGrid
         const mapped = (data || []).map((d, index) => ({
           id: d._id || d.drugId || index,
           ...d,
+          // handle MongoDB extended JSON: { $date: "..." }
+          lastUpdateTimestamp:
+            d.lastUpdateTimestamp && d.lastUpdateTimestamp.$date
+              ? d.lastUpdateTimestamp.$date
+              : d.lastUpdateTimestamp || null,
         }));
 
         setRows(mapped);
@@ -97,7 +101,8 @@ function DrugList({ API_BASE_URL, authToken }) {
         let color = "default";
         if (status === "MANUFACTURED") color = "primary";
         else if (status === "IN_TRANSIT") color = "info";
-        else if (status === "DISPENSED") color = "success";
+        else if (status === "DISPENSED" || status === "DISPENSED_TO_PATIENT")
+          color = "success";
         else if (status === "FLAGGED") color = "error";
 
         return (
@@ -126,6 +131,11 @@ function DrugList({ API_BASE_URL, authToken }) {
       flex: 1.1,
       renderCell: (params) =>
         params.value ? new Date(params.value).toLocaleString() : "—",
+    },
+    {
+      field: "lastSyncedBlock",
+      headerName: "Last Block",
+      flex: 0.7,
     },
   ];
 
