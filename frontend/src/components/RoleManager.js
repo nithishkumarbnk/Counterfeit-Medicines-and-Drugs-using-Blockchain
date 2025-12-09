@@ -11,6 +11,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  Stack,
 } from "@mui/material";
 
 function RoleManager({ API_BASE_URL, authToken }) {
@@ -122,144 +123,200 @@ function RoleManager({ API_BASE_URL, authToken }) {
   };
 
   return (
-    <Paper elevation={3} sx={{ p: 3, mt: 3 }}>
-      <Typography variant="h5" component="h2" gutterBottom>
+    <Paper
+      elevation={3}
+      sx={{
+        p: 3,
+        mt: 3,
+        borderRadius: 3,
+        border: "1px solid rgba(148,163,184,0.35)",
+      }}
+    >
+      <Typography
+        variant="h5"
+        component="h2"
+        gutterBottom
+        sx={{ fontWeight: 600 }}
+      >
         Admin: Manage Roles
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        (Requires the server's `MANUFACTURER_PRIVATE_KEY` to have
-        `DEFAULT_ADMIN_ROLE`)
+        (Requires the server's <code>MANUFACTURER_PRIVATE_KEY</code> to have{" "}
+        <code>DEFAULT_ADMIN_ROLE</code>)
       </Typography>
-      {/* Grant/Revoke Role Section */}
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 4 }}>
-        <TextField
-          label="Account Address to Manage Role"
-          variant="outlined"
-          value={adminAccountAddress}
-          onChange={(e) => setAdminAccountAddress(e.target.value)}
-          fullWidth
-        />
-        <FormControl fullWidth variant="outlined">
-          <InputLabel>Role to Grant/Revoke</InputLabel>
-          <Select
-            value={adminRoleName}
-            onChange={(e) => setAdminRoleName(e.target.value)}
-            label="Role to Grant/Revoke"
-          >
-            {roles
-              .filter((role) => role !== "DEFAULT_ADMIN_ROLE") // Don't allow granting/revoking DEFAULT_ADMIN_ROLE via UI
-              .map((role) => (
-                <MenuItem key={role} value={role}>
-                  {role}
-                </MenuItem>
-              ))}
-          </Select>
-        </FormControl>
-        <Box sx={{ display: "flex", gap: 1 }}>
-          <Button
-            variant="contained"
-            onClick={() => handleGrantRevoke("grant")}
-            disabled={loading}
-            sx={{ flexGrow: 1 }}
-          >
-            {loading ? "Granting..." : "Grant Role"}
-          </Button>
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={() => handleGrantRevoke("revoke")}
-            disabled={loading}
-            sx={{ flexGrow: 1 }}
-          >
-            {loading ? "Revoking..." : "Revoke Role"}
-          </Button>
-        </Box>
-      </Box>
-      {/* Admin Operation Result Display */}
-      {adminResult && (
-        <Paper
-          elevation={1}
-          sx={{
-            p: 2,
-            mt: 2,
-            bgcolor: adminResult.message.includes("successfully")
-              ? "success.light"
-              : "error.light",
-          }}
-        >
-          <Typography>
-            <strong>Message:</strong> {adminResult.message}
-          </Typography>
-          {adminResult.transactionHash && (
-            <Typography>
-              <strong>Transaction Hash:</strong> {adminResult.transactionHash}
-            </Typography>
-          )}
-        </Paper>
-      )}
+
       {error && (
-        <Typography color="error" sx={{ mt: 2 }}>
+        <Typography color="error" sx={{ mb: 2 }}>
           {error}
         </Typography>
       )}
-      <hr style={{ margin: "40px 0" }} /> {/* Separator */}
-      {/* Check Role Section */}
-      <Typography variant="h6" component="h3" sx={{ mt: 4 }} gutterBottom>
-        Check Role
-      </Typography>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <TextField
-          label="Address to Check Role"
-          variant="outlined"
-          value={checkAddress}
-          onChange={(e) => setCheckAddress(e.target.value)}
-          fullWidth
-        />
-        <FormControl fullWidth variant="outlined">
-          <InputLabel>Role to Check</InputLabel>
-          <Select
-            value={checkRole}
-            onChange={(e) => setCheckRole(e.target.value)}
-            label="Role to Check"
-          >
-            {roles.map((role) => (
-              <MenuItem key={role} value={role}>
-                {role}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <Button
-          variant="contained"
-          onClick={handleCheckRole}
-          disabled={loading}
-        >
-          {loading ? "Checking..." : "Check Role"}
-        </Button>
-      </Box>
-      {/* Role Check Result Display */}
-      {roleCheckResult && (
+
+      {/* Side-by-side layout: left = grant/revoke, right = check */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+          gap: 3,
+          mt: 1,
+        }}
+      >
+        {/* LEFT: Grant / Revoke Role */}
         <Paper
           elevation={1}
           sx={{
-            p: 2,
-            mt: 2,
-            bgcolor: roleCheckResult.hasRole
-              ? "success.light"
-              : "warning.light",
+            p: 2.5,
+            borderRadius: 2,
+            border: "1px solid rgba(148,163,184,0.3)",
           }}
         >
-          <Typography>
-            <strong>Address:</strong> {roleCheckResult.address}
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+            Grant / Revoke Role
           </Typography>
-          <Typography>
-            <strong>Role:</strong> {roleCheckResult.role}
-          </Typography>
-          <Typography>
-            <strong>Has Role:</strong> {roleCheckResult.hasRole ? "Yes" : "No"}
-          </Typography>
+
+          <Stack spacing={2}>
+            <TextField
+              label="Account Address to Manage Role"
+              variant="outlined"
+              value={adminAccountAddress}
+              onChange={(e) => setAdminAccountAddress(e.target.value)}
+              fullWidth
+            />
+
+            <FormControl fullWidth variant="outlined">
+              <InputLabel>Role to Grant/Revoke</InputLabel>
+              <Select
+                value={adminRoleName}
+                onChange={(e) => setAdminRoleName(e.target.value)}
+                label="Role to Grant/Revoke"
+              >
+                {roles
+                  .filter((role) => role !== "DEFAULT_ADMIN_ROLE") // Don't allow granting/revoking DEFAULT_ADMIN_ROLE via UI
+                  .map((role) => (
+                    <MenuItem key={role} value={role}>
+                      {role}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
+
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Button
+                variant="contained"
+                onClick={() => handleGrantRevoke("grant")}
+                disabled={loading}
+                sx={{ flexGrow: 1 }}
+              >
+                {loading ? "Granting..." : "Grant Role"}
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={() => handleGrantRevoke("revoke")}
+                disabled={loading}
+                sx={{ flexGrow: 1 }}
+              >
+                {loading ? "Revoking..." : "Revoke Role"}
+              </Button>
+            </Box>
+
+            {adminResult && (
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  mt: 1,
+                  borderRadius: 2,
+                  bgcolor: adminResult.message?.includes("successfully")
+                    ? "success.light"
+                    : "error.light",
+                }}
+              >
+                <Typography>
+                  <strong>Message:</strong> {adminResult.message}
+                </Typography>
+                {adminResult.transactionHash && (
+                  <Typography>
+                    <strong>Transaction Hash:</strong>{" "}
+                    {adminResult.transactionHash}
+                  </Typography>
+                )}
+              </Paper>
+            )}
+          </Stack>
         </Paper>
-      )}
+
+        {/* RIGHT: Check Role */}
+        <Paper
+          elevation={1}
+          sx={{
+            p: 2.5,
+            borderRadius: 2,
+            border: "1px solid rgba(148,163,184,0.3)",
+          }}
+        >
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+            Check Role
+          </Typography>
+
+          <Stack spacing={2}>
+            <TextField
+              label="Address to Check Role"
+              variant="outlined"
+              value={checkAddress}
+              onChange={(e) => setCheckAddress(e.target.value)}
+              fullWidth
+            />
+
+            <FormControl fullWidth variant="outlined">
+              <InputLabel>Role to Check</InputLabel>
+              <Select
+                value={checkRole}
+                onChange={(e) => setCheckRole(e.target.value)}
+                label="Role to Check"
+              >
+                {roles.map((role) => (
+                  <MenuItem key={role} value={role}>
+                    {role}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <Button
+              variant="contained"
+              onClick={handleCheckRole}
+              disabled={loading}
+            >
+              {loading ? "Checking..." : "Check Role"}
+            </Button>
+
+            {roleCheckResult && (
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  mt: 1,
+                  borderRadius: 2,
+                  bgcolor: roleCheckResult.hasRole
+                    ? "success.light"
+                    : "warning.light",
+                }}
+              >
+                <Typography>
+                  <strong>Address:</strong> {roleCheckResult.address}
+                </Typography>
+                <Typography>
+                  <strong>Role:</strong> {roleCheckResult.role}
+                </Typography>
+                <Typography>
+                  <strong>Has Role:</strong>{" "}
+                  {roleCheckResult.hasRole ? "Yes" : "No"}
+                </Typography>
+              </Paper>
+            )}
+          </Stack>
+        </Paper>
+      </Box>
     </Paper>
   );
 }
